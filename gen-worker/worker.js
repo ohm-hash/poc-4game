@@ -129,7 +129,8 @@ export default {
     const prompt = s.catch
       ? 'Full-body cute chibi 3D cartoon character of the person in the photo (big head, small body), keep their face, skin tone and hairstyle recognizable. ' +
         `Wearing a ${s.outfit}. Standing and facing the camera, the whole body visible from head to shoes, ` +
-        `raising ${s.catch} high above their head with both hands, ready to catch falling things, happy excited expression. ` +
+        `holding ${s.catch} in front of their chest with both hands, its open top facing up, ready to catch falling things. ` +
+        'Natural body proportions with normal-length arms, happy excited expression. ' +
         'Isolated on a plain pure white background: no ground, no shadow, no scenery, no other objects, no border, no text, no logos, no flags or patches.'
       : BASE + s.prompt + pose;
     const reqBase = {

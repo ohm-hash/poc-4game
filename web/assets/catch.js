@@ -55,8 +55,8 @@ function spriteHero(sprite) {
   return {
     ground: GH - 36, h,
     draw: (x, px, gy, bob) => x.drawImage(sprite, px - w / 2, gy - h + bob, w, h),
-    zone: (gy) => [gy - h, gy - h + h * 0.24], // the basket is held above the head
-    halfW: Math.min(w * 0.45, 95),
+    zone: (gy) => [gy - h * 0.6, gy - h * 0.44], // the basket is held at chest height (~40-56% down the figure)
+    halfW: Math.min(w * 0.42, 85),
     sprite,
   };
 }

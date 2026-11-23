@@ -7,6 +7,7 @@ import { makeCanvas, drawCover, seeded, wrapText, loadImage } from './common.js'
 import { GEN_API } from './config.js';
 
 export const AI_ON = !!GEN_API;
+const CACHE_V = 'v2';
 
 function photoB64(photo) {
   const s = Math.min(1, 1024 / Math.max(photo.width, photo.height));
@@ -47,7 +48,8 @@ async function toCanvas(src) {
 /** -> { canvas, url } (url = 24 h share link of the AI image) or null on any failure */
 export async function aiGenerate(photo, style, { variant = 0, timeout = 90000 } = {}) {
   if (!GEN_API) return null;
-  const cacheKey = photo.dataset?.sample ? `sample:${style}:${variant}` : null;
+  // bump CACHE_V whenever worker prompts change, so stale sample images are not reused
+  const cacheKey = photo.dataset?.sample ? `${CACHE_V}:sample:${style}:${variant}` : null;
   if (cacheKey) {
     const hit = await cacheGet(cacheKey);
     if (hit) return { canvas: await toCanvas(hit), url: null };
