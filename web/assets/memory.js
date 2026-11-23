@@ -14,7 +14,7 @@ const cam = photoCapture($('#cap'), {
     showScreen('s-theme');
   },
 });
-cam.start();
+$('#start').onclick = () => { sfx('tap'); showScreen('s-capture'); cam.start(); };
 
 function buildThemes() {
   const grid = $('#themeGrid');

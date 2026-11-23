@@ -153,3 +153,19 @@ img, canvas, video { -webkit-user-drag: none; }
   position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 60; pointer-events: none;
   background: #000c; padding: .6em 1.2em; border-radius: 1em; font-weight: 600; animation: pop 1.6s ease forwards;
 }
+
+/* theme picker (Memory Match, Photohunt) */
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; width: 100%; }
+.theme-card {
+  position: relative; border: .2em solid #ffd27a88; border-radius: 1em; overflow: hidden; padding: 0; cursor: pointer;
+  background: #2b0d02; box-shadow: 0 .4em .8em #0005; transition: transform .15s;
+}
+.theme-card img { width: 100%; display: block; aspect-ratio: 5 / 6; object-fit: cover; }
+.theme-grid.wide .theme-card img { aspect-ratio: 4 / 3; }
+.theme-card span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: .25em; font: 800 1em Kanit, sans-serif; color: var(--gold);
+  background: linear-gradient(transparent, #000c 40%); text-shadow: 0 2px 0 #000;
+}
+.theme-card.sel { border-color: var(--gold); transform: scale(1.04); box-shadow: 0 0 0 .2em #fff, 0 0 1.5em var(--gold); }
+.theme-card.sel::after { content: '✓'; position: absolute; top: .3em; right: .3em; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--green); display: grid; place-items: center; font-weight: 800; }
+

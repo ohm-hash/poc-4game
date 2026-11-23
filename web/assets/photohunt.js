@@ -1,11 +1,32 @@
 import { $, $$, showScreen, sleep, shuffle, rand, pick, fmtTime, sfx, Countdown, photoCapture, makeCanvas, drawCover, shareQR, downloadCanvas, confetti, progressWhile, toast, animate } from './common.js';
-import { stylize, emoji, souvenir, aiGenerate, AI_ON } from './ai.js';
+import { stylize, emoji, souvenir, aiGenerate, AI_ON, THEMES } from './ai.js';
 
 const W = 600, H = 450, N = 8, TIME = 90, R = 30;
 const STICKERS = ['🎃', '🦇', '🌕', '🕷️', '👻', '⭐', '🕯️', '🍬', '💀', '🥀'];
-let photo, lastScene = null, lastDetailed = false, portrait, imgA, imgB, diffs = [], found = 0, timer, over = true, seed = 1;
+let theme = 'vampire', photo, lastScene = null, lastDetailed = false, portrait, imgA, imgB, diffs = [], found = 0, timer, over = true, seed = 1;
 
-const cam = photoCapture($('#cap'), { round: true, hint: 'มองกล้อง แล้วกดปุ่มถ่ายรูป 📸', onPhoto: (c) => { photo = c; generate(); } });
+const cam = photoCapture($('#cap'), { round: true, hint: 'มองกล้อง แล้วกดปุ่มถ่ายรูป 📸', onPhoto: (c) => { photo = c; buildThemes(); showScreen('s-theme'); } });
+
+// Theme picker shows pre-made AI samples (assets/themes/ph-*.jpg), not the player's photo.
+function buildThemes() {
+  const grid = $('#themeGrid');
+  grid.innerHTML = '';
+  $('#themePreview').src = `assets/themes/ph-${theme}.jpg`;
+  for (const key of ['vampire', 'xmastown', 'pirate', 'candy']) {
+    const b = document.createElement('button');
+    b.className = 'theme-card' + (key === theme ? ' sel' : '');
+    b.innerHTML = `<img src="assets/themes/ph-${key}.jpg" alt=""><span>${THEMES[key].label}</span>`;
+    b.onclick = () => {
+      theme = key;
+      $('#themePreview').src = `assets/themes/ph-${key}.jpg`;
+      $$('.theme-card').forEach((x) => x.classList.toggle('sel', x === b));
+      sfx('tap');
+    };
+    grid.appendChild(b);
+  }
+}
+$('#retake').onclick = () => { showScreen('s-capture'); cam.start(); };
+$('#toGen').onclick = () => { sfx('tap'); generate(); };
 
 $('#start').onclick = () => { sfx('tap'); showScreen('s-capture'); cam.start(); };
 
@@ -13,7 +34,7 @@ async function generate() {
   showScreen('s-gen');
   seed = Date.now() % 100000;
   // blurred mock preview while the AI works
-  const mock = stylize(photo, 'vampire', { w: 480, h: 600, seed });
+  const mock = stylize(photo, theme, { w: 480, h: 600, seed });
   mock.style.filter = 'blur(16px) brightness(.5)';
   $('#genPreview').replaceChildren(mock);
   const bar = (p) => {
@@ -21,7 +42,7 @@ async function generate() {
     $('#genPct').textContent = `${Math.round(p * 100)}%`;
     mock.style.filter = `blur(${(1 - p) * 16}px) brightness(${0.5 + p * 0.5})`;
   };
-  const ai = AI_ON ? await progressWhile(aiGenerate(photo, 'vampire'), bar, 18000) : (await animate(3200, bar), null);
+  const ai = AI_ON ? await progressWhile(aiGenerate(photo, theme), bar, 18000) : (await animate(3200, bar), null);
   if (AI_ON && !ai) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
   let scene;
   if (ai) {
@@ -35,7 +56,7 @@ async function generate() {
   } else {
     portrait = mock;
     portrait.style.filter = '';
-    scene = stylize(photo, 'vampire', { w: W, h: H, seed });
+    scene = stylize(photo, theme, { w: W, h: H, seed });
   }
   lastScene = scene;
   lastDetailed = !!ai;

@@ -84,7 +84,10 @@ export const THEMES = {
   santa: { label: 'SANTA', c1: '#5c0010', c2: '#ff3b3b', deco: ['🎅', '🎄', '❄️', '🎁', '⭐', '🔔', '⛄', '🦌'], filter: 'saturate(1.2) brightness(1.05)' },
   hero: { label: 'SUPER HERO', c1: '#0a1f7a', c2: '#ff3d00', deco: ['🦸', '⚡', '💥', '🛡️', '🔥', '💪', '🌟', '🚀'], filter: 'contrast(1.25) saturate(1.35)' },
   space: { label: 'SPACE', c1: '#03032a', c2: '#4b23a8', deco: ['👨‍🚀', '🚀', '🪐', '⭐', '🌙', '👽', '☄️', '🛸'], filter: 'saturate(1.1) brightness(1.05)' },
-  vampire: { label: 'VAMPIRE', c1: '#070b24', c2: '#3a4a8a', deco: ['🦇', '🌕', '🏰', '🕯️', '🎃', '🕸️', '🥀', '🧛'], filter: 'contrast(1.2) saturate(0.85) brightness(0.95)' },
+  xmastown: { label: 'CHRISTMAS TOWN', c1: '#0b2a1a', c2: '#e23b3b', deco: ['🎄', '🎁', '⛄', '🍪', '🔔', '❄️', '🦌', '⭐'], filter: 'saturate(1.2) brightness(1.05)' },
+  pirate: { label: 'PIRATE ISLAND', c1: '#0a3a5a', c2: '#f2b84b', deco: ['🦜', '💰', '🗺️', '⚓', '🌴', '🦀', '🐚', '⛵'], filter: 'saturate(1.2) contrast(1.1)' },
+  candy: { label: 'CANDY LAND', c1: '#7a2a6a', c2: '#ff9ad5', deco: ['🍭', '🧁', '🍩', '🍬', '🍦', '🍰', '🍫', '🧸'], filter: 'saturate(1.3) brightness(1.08)' },
+  vampire: { label: 'HAUNTED CASTLE', c1: '#070b24', c2: '#3a4a8a', deco: ['🦇', '🌕', '🏰', '🕯️', '🎃', '🕸️', '🥀', '🧛'], filter: 'contrast(1.2) saturate(0.85) brightness(0.95)' },
 };
 
 export function hexA(hex, a) {

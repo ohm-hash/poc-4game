@@ -11,6 +11,11 @@
   .logo { font-size: 3.4em; font-weight: 800; line-height: 1; text-align: center; transform: rotate(-3deg); }
   .logo span { display: block; color: #fff; -webkit-text-stroke: .06em #5a1a00; paint-order: stroke fill; text-shadow: 0 .1em 0 #5a1a00; }
   .logo .ai { color: var(--gold); font-size: 1.3em; }
+  .start-row { position: relative; width: 100%; height: 14em; }
+  .start-row .ball { position: absolute; left: 0; top: 1em; transform: scale(.95); transform-origin: left top; }
+  .polaroid { position: absolute; right: 0; top: 0; width: 13em; background: #fff; padding: .45em .45em .3em; border-radius: .4em; transform: rotate(6deg); box-shadow: 0 .5em 1.2em #0007; z-index: 2; }
+  .polaroid img { width: 100%; display: block; border-radius: .2em; }
+  .polaroid figcaption { color: #8a2a00; font-size: .8em; text-align: center; font-weight: 600; padding-top: .2em; }
   .ball { position: relative; width: 11em; height: 12em; flex-shrink: 0; }
   .ball .orb {
     position: absolute; left: .5em; top: 0; width: 10em; height: 10em; border-radius: 50%;
@@ -60,7 +65,10 @@
     <div class="spacer"></div>
     <div class="logo"><span>เปิดดวง</span><span>แบบขำๆ</span><span class="ai">กับ AI</span></div>
     <div class="bubble">ดวงจะปัง หรือดวงจะพัง<br>ไม่รู้... แต่รับรองว่าขำ! 😂</div>
-    <div class="ball"><div class="orb"><b>AI</b></div><div class="base">HOROSCOPE</div></div>
+    <div class="start-row">
+      <div class="ball"><div class="orb"><b>AI</b></div><div class="base">HOROSCOPE</div></div>
+      <figure class="polaroid"><img src="assets/themes/fortune.jpg" alt="ตัวอย่างผลทำนาย"><figcaption>ตัวอย่างผลลัพธ์ 💗</figcaption></figure>
+    </div>
     <div class="spacer"></div>
     <button class="btn wide" id="begin">เริ่มทำนายดวง ➜</button>
     <p class="sub muted">🐱 แม่นไม่แม่น แต่สนุกแน่!</p>

@@ -12,7 +12,9 @@
   .logo { font-size: 3.6em; font-weight: 800; line-height: .95; text-align: center; transform: rotate(-4deg); }
   .logo .l1 { color: #fff; text-shadow: 0 .06em 0 #1e3a9a, 0 .1em 0 #1e3a9a, 0 .18em .3em #0007; display: block; }
   .ribbon { background: linear-gradient(180deg, #3f78ff, #1e3fb8); padding: .15em 1.2em; border-radius: .3em; font-weight: 800; font-style: italic; font-size: 1.3em; transform: rotate(-4deg); box-shadow: 0 .3em .6em #0006; border: 2px solid #9fc0ff; }
-  .chars { font-size: 6em; animation: float 2.4s ease-in-out infinite; }
+  .chars { position: relative; width: 13em; animation: float 2.4s ease-in-out infinite; }
+  .chars img { width: 100%; border-radius: 50%; border: .3em solid #fff; box-shadow: 0 .5em 1.2em #0006; display: block; }
+  .chars span { position: absolute; right: -.4em; bottom: -.3em; font-size: 4em; }
   @keyframes float { 50% { transform: translateY(-.08em); } }
   #s-play { padding: 0; }
   .stage:has(#s-play.active) .home-btn { display: none; }
@@ -40,7 +42,7 @@
     <div class="spacer"></div>
     <div class="logo"><span class="l1">รับของ</span><span class="gold-text">ไข่ตก!</span></div>
     <div class="ribbon">CATCH &amp; WIN</div>
-    <div class="chars">🧺🥚</div>
+    <div class="chars"><img src="assets/themes/chibi.jpg" alt="ตัวอย่างตัวละคร"><span>🧺</span></div>
     <p class="sub">AI เปลี่ยนรูปคุณเป็นตัวละครน่ารัก<br>แล้วรับไข่ รับของขวัญ หลบระเบิด ให้ได้คะแนนมากที่สุด!</p>
     <div class="spacer"></div>
     <button class="btn blue wide" id="toCam">📷 ถ่ายรูป</button>
