@@ -21,17 +21,22 @@
   .theme-card.sel { border-color: var(--gold); transform: scale(1.04); box-shadow: 0 0 0 .2em #fff, 0 0 1.5em var(--gold); }
   .theme-card.sel::after { content: '✓'; position: absolute; top: .3em; right: .3em; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--green); display: grid; place-items: center; font-weight: 800; }
 
-  .gen-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5em; width: 100%; }
+  /* 5 big previews: 2 + 2 + 1 centred */
+  .gen-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: .6em; width: 100%; }
+  .gen-grid .gen-slot { width: 45%; }
   .gen-slot { aspect-ratio: 1; border-radius: .7em; background: #0003; border: 2px dashed #fff6; overflow: hidden; display: grid; place-items: center; }
-  .gen-slot::before { content: '✨'; font-size: 1.6em; animation: pulse 1s infinite; }
+  .gen-slot::before { content: '✨'; font-size: 3em; animation: pulse 1s infinite; }
   .gen-slot.done { border: .15em solid var(--gold); }
   .gen-slot.done::before { display: none; }
   .gen-slot img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn .4s; }
   @keyframes pulse { 50% { opacity: .3; transform: scale(.8); } }
 
   /* 10 cards: rows of 3, last card centred */
-  .board { display: flex; flex-wrap: wrap; justify-content: center; gap: .6em; width: 88%; perspective: 900px; }
-  .board .mcard { font-size: inherit; width: calc((100% - 1.2em) / 3); }
+  /* 10 big cards: 3 + 3 + 3 + 1 centred, using the full screen width */
+  #s-game { padding-left: .6em; padding-right: .6em; }
+  .board { display: flex; flex-wrap: wrap; justify-content: center; gap: .45em; width: 100%; perspective: 900px; }
+  .board .mcard { font-size: inherit; width: calc((100% - .9em) / 3); }
+  .mcard .back { font-size: 3.2em !important; }
   .mcard { aspect-ratio: 1; background: none; border: 0; padding: 0; cursor: pointer; }
   .mcard .inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .4s; }
   .mcard.flipped .inner { transform: rotateY(180deg); }
@@ -81,7 +86,6 @@
   </section>
 
   <section class="screen" id="s-game">
-    <div class="step"><b>4</b>เริ่มเกม จับคู่ให้ได้!</div>
     <div class="hud">
       <div><small>⏱ เวลา</small><b id="hTime">01:00</b></div>
       <div><small>คู่ที่จับได้</small><b id="hPairs">0 / 5</b></div>
