@@ -22,7 +22,11 @@ function buildThemes() {
   for (const key of ['halloween', 'santa', 'hero', 'space']) {
     const b = document.createElement('button');
     b.className = 'theme-card' + (key === theme ? ' sel' : '');
-    b.appendChild(stylize(photo, key, { w: 300, h: 360, seed }));
+    // pre-made AI sample of the theme (a sample person, not the player's photo) — see assets/themes/
+    const img = new Image();
+    img.src = `assets/themes/${key}.jpg`;
+    img.alt = THEMES[key].label;
+    b.appendChild(img);
     const l = document.createElement('span');
     l.textContent = THEMES[key].label;
     b.appendChild(l);

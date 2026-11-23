@@ -18,7 +18,7 @@
 
 const BASE =
   'Keep the face, skin tone, hairstyle, glasses and overall likeness of the person in the photo clearly recognizable. ' +
-  'Bright, high-quality illustration, vivid colors, soft lighting. No text, no letters, no logos, no watermark. Family-friendly. ';
+  'Bright, high-quality illustration, vivid colors, soft lighting. No text, no letters, no logos, no national flags, no watermark. Family-friendly. ';
 
 // Memory Match asks for several variants of one theme — each gets a different pose/scene so pairs look distinct.
 const POSES = [
