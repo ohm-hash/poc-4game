@@ -37,7 +37,7 @@ async function generate() {
     portrait.style.filter = '';
     scene = stylize(photo, 'vampire', { w: W, h: H, seed });
   }
-  build(scene);
+  build(scene, !!ai);
   sfx('good');
   await sleep(900);
   play();
@@ -69,11 +69,12 @@ function visibleChange(ax, bx, p) {
   return sum / (A.length / 4);
 }
 
-function build(scene) {
+function build(scene, detailed = false) {
   const [a, ax] = makeCanvas(W, H);
   ax.drawImage(scene, 0, 0);
   // shared decorations (same in both pictures) to make the search harder
-  for (let i = 0; i < 6; i++) emoji(ax, pick(STICKERS), rand(30, W - 30), rand(30, H - 30), rand(26, 40), rand(-0.5, 0.5), 0.95);
+  // (an AI scene is already full of small objects, so skip these there)
+  if (!detailed) for (let i = 0; i < 6; i++) emoji(ax, pick(STICKERS), rand(30, W - 30), rand(30, H - 30), rand(26, 40), rand(-0.5, 0.5), 0.95);
   const [b, bx] = makeCanvas(W, H);
   bx.drawImage(a, 0, 0);
 
@@ -86,7 +87,9 @@ function build(scene) {
     } while (tries < 300 && pts.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < R * 2.6));
     pts.push(p);
   }
-  const types = shuffle(['add', 'add', 'missing', 'swap', 'color', 'flip', 'dark', 'color']);
+  const types = shuffle(detailed
+    ? ['add', 'missing', 'swap', 'color', 'color', 'flip', 'flip', 'dark'] // fewer stickers on an AI scene
+    : ['add', 'add', 'missing', 'swap', 'color', 'flip', 'dark', 'color']);
   diffs = pts.map((p, i) => {
     const type = types[i];
     if (type === 'add') emoji(bx, pick(STICKERS), p.x, p.y, R * 1.4, rand(-0.4, 0.4));
