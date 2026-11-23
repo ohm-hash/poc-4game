@@ -1,5 +1,5 @@
 import { $, $$, showScreen, sleep, pick, rand, sfx, photoCapture, makeCanvas, drawCover, roundRect, shareQR, downloadCanvas, confetti, wrapText, toast } from './common.js';
-import { emoji, aiGenerate, AI_ON } from './ai.js';
+import { emoji, aiGenerate, aiFortune, AI_ON } from './ai.js';
 
 export const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const SHORT = ['มกรา', 'กุมภา', 'มีนา', 'เมษา', 'พฤษภา', 'มิถุนา', 'กรกฎา', 'สิงหา', 'กันยา', 'ตุลา', 'พฤศจิกา', 'ธันวา'];
@@ -171,9 +171,12 @@ async function process(reuse = false) {
   showScreen('s-process');
   const items = $$('#check div');
   items.forEach((d) => d.classList.remove('on', 'ok'));
-  fortune = makeFortune(birth);
   // resolves null when AI is off or fails; "ทำนายอีกครั้ง" reuses the same picture with a new fortune
-  const aiJob = reuse ? Promise.resolve(lastAi) : aiGenerate(photo, 'fortune');
+  const imgJob = reuse ? Promise.resolve(lastAi) : aiGenerate(photo, 'fortune');
+  // the fortune text is written live by AI from the photo + birthday (random lists are the fallback)
+  const zod = zodiac(birth.day, birth.month);
+  const textJob = aiFortune(photo, { ...birth, zodiac: zod });
+  const aiJob = Promise.all([imgJob, textJob]).then(([img]) => img);
   const t0 = performance.now();
   let stop = false;
   (async () => { // progress: steady for the checklist, then creeps toward 99% while the AI finishes
@@ -194,6 +197,8 @@ async function process(reuse = false) {
   }
   const ai = await aiJob;
   lastAi = ai;
+  const text = await textJob;
+  fortune = text ? { ...text, zodiac: zod } : makeFortune(birth);
   stop = true;
   $('#pBar').style.width = '100%';
   $('#pPct').textContent = '100%';

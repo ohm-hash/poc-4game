@@ -50,6 +50,17 @@ const STYLES = {
   fortune: { ratio: '4:3', prompt: 'Funny romantic vacation selfie on a sunny Greek-island seaside with white houses and blue sea. Next to the person is their mysterious future partner whose face is completely hidden behind a big pink heart-shaped balloon. Floating hearts, playful comedic mood, photo-realistic but slightly stylized.' },
 };
 
+// ---- เปิดดวงแบบขำๆ: the fortune text is written live by a text+vision model ----
+const FORTUNE_SYSTEM = `คุณคือหมอดูสายฮาประจำบูธเกมในงานอีเวนต์ ทำนาย "ดวงความรัก" ให้ผู้เล่นแบบขำๆ อบอุ่น เป็นกันเอง
+กติกา:
+- ใช้ภาษาไทยสนุกๆ แบบวัยรุ่น มี emoji ได้นิดหน่อย ทุกคนอ่านแล้วต้องยิ้ม ห้ามเศร้าหรือน่ากลัว
+- ดูรูปแล้วหยิบรายละเอียดเชิงบวกที่เห็นชัดมาเล่นได้ 1 อย่าง เช่น รอยยิ้ม สีเสื้อ แว่นตา ทรงผม ท่าทาง
+- ห้ามล้อเลียนหรือพูดถึง รูปร่าง น้ำหนัก ผิว อายุ เชื้อชาติ ศาสนา สุขภาพ หรือเรื่องอ่อนไหว ห้ามเดาเพศหรือรสนิยม ใช้คำกลางๆ เช่น "เขา" "คนนั้น"
+- ใช้ราศีที่ให้มาเป็นส่วนหนึ่งของมุกได้
+- ทุกครั้งให้แต่งใหม่ไม่ซ้ำเดิม
+ตอบเป็น JSON อย่างเดียว ไม่มีข้อความอื่น ตามรูปแบบนี้:
+{"head":"หัวข้อสั้นๆ ลงท้ายด้วย ! ไม่เกิน 30 ตัวอักษร","partner":"เนื้อคู่จะเป็นใคร/แบบไหน แบบฮาๆ พร้อม emoji 1 ตัว ไม่เกิน 35 ตัวอักษร","detail":"คำทำนายตลกๆ 1-2 ประโยค ไม่เกิน 130 ตัวอักษร","love":ตัวเลข 60-99,"lucky":"สิ่งนำโชค พร้อม emoji ไม่เกิน 22 ตัวอักษร"}`;
+
 const MAX_UPLOAD = 20 * 1024 * 1024;
 const UPLOAD_TYPES = ['image/png', 'image/jpeg', 'video/webm', 'video/mp4'];
 
@@ -110,6 +121,58 @@ export default {
       if (!(await underCap('upload', +(env.UPLOAD_LIMIT || 400)))) return json({ error: 'daily_limit' }, 429);
       const id = await save(buf, mime, { kind: 'upload' });
       return json({ id, url: fileUrl(id) });
+    }
+
+    // ---- live fortune text: photo + birthday -> {head, partner, detail, love, lucky} ----
+    if (url.pathname === '/fortune') {
+      if (!env.OPENROUTER_API_KEY) return json({ error: 'not_configured' }, 503);
+      let b;
+      try { b = await req.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const photo = typeof b?.photo === 'string' ? b.photo.replace(/^data:image\/\w+;base64,/, '') : '';
+      const day = b?.day | 0, month = b?.month | 0;
+      if (!photo || day < 1 || day > 31 || month < 1 || month > 12) return json({ error: 'bad_request' }, 400);
+      if (photo.length > 1_500_000) return json({ error: 'photo_too_large' }, 413);
+      if (!(await underCap('fortune', +(env.FORTUNE_LIMIT || 300)))) return json({ error: 'daily_limit' }, 429);
+      const zodiac = String(b?.zodiac || '').slice(0, 20);
+      const year = b?.yearBE | 0;
+      const userText = `ผู้เล่นเกิดวันที่ ${day} เดือน ${month}${year ? ` ปี พ.ศ. ${year}` : ''} ราศี${zodiac} ช่วยทำนายดวงความรักแบบขำๆ จากรูปนี้หน่อย`;
+      const base = {
+        model: env.TEXT_MODEL || 'anthropic/claude-opus-5.5',
+        max_tokens: 4000,
+        messages: [
+          { role: 'system', content: FORTUNE_SYSTEM },
+          { role: 'user', content: [
+            { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + photo } },
+            { type: 'text', text: userText },
+          ] },
+        ],
+      };
+      let r, detail = '';
+      for (const extra of [{ reasoning: { effort: 'low' } }, {}]) { // fall back if the provider rejects the option
+        r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + env.OPENROUTER_API_KEY,
+            'HTTP-Referer': 'https://ohm-hash.github.io/poc-4game/',
+            'X-Title': 'POC 4 Game',
+          },
+          body: JSON.stringify({ ...base, ...extra }),
+        });
+        if (r.ok) break;
+        detail = (await r.text()).slice(0, 300);
+        if (r.status !== 400 && r.status !== 422) break;
+      }
+      if (!r.ok) return json({ error: 'openrouter_error', status: r.status, detail }, 502);
+      const out = await r.json();
+      const text = out?.choices?.[0]?.message?.content || '';
+      const m = String(text).match(/\{[\s\S]*\}/);
+      let f;
+      try { f = JSON.parse(m ? m[0] : ''); } catch { return json({ error: 'bad_model_output', text: String(text).slice(0, 200) }, 502); }
+      const s = (v, n) => String(v ?? '').trim().slice(0, n);
+      const fortune = { head: s(f.head, 60), partner: s(f.partner, 70), detail: s(f.detail, 220), love: Math.max(60, Math.min(99, f.love | 0 || 88)), lucky: s(f.lucky, 40) };
+      if (!fortune.head || !fortune.detail) return json({ error: 'bad_model_output' }, 502);
+      return json(fortune);
     }
 
     if (url.pathname !== '/gen') return json({ error: 'not_found' }, 404);

@@ -55,6 +55,18 @@
   .meter { display: flex; gap: .5em; width: 100%; font-size: .85em; }
   .meter div { flex: 1; background: #3a1205aa; border-radius: .7em; padding: .25em .4em; text-align: center; }
   .meter b { display: block; font-size: 1.2em; color: var(--gold); }
+  /* result screen must fit one 9:16 screen even with longer AI-written text */
+  #s-result { gap: .45em; padding-top: 1.2em; }
+  #s-result > .sub:first-child { font-size: .8em; }
+  #s-result .result-head { padding: .35em .8em; }
+  #s-result .result-head .h { font-size: 1.3em; }
+  #s-result .result-head .p { font-size: 1em; }
+  #rImg { width: 84% !important; }
+  #s-result .detail { font-size: .82em; padding: .4em .8em; }
+  #s-result .meter { font-size: .78em; }
+  #s-result .meter b { font-size: 1.05em; }
+  #s-result .qr { width: 6.6em; height: 6.6em; }
+  #s-result .btn.wide, #s-result .row .btn { font-size: 1.05em; }
 </style>
 </head>
 <body>

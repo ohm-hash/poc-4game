@@ -9,6 +9,9 @@ ALLOWED_ORIGINS = "https://ohm-hash.github.io,http://localhost:8080"
 # OpenRouter model id (pick at openrouter.ai/models, filter output = image; must accept image input)
 MODEL = "google/gemini-nano-banana-2.1"
 QUALITY = "medium"
+# เปิดดวง: live fortune text (OpenRouter text+vision model) and its own daily cap
+TEXT_MODEL = "anthropic/claude-opus-5.5"
+FORTUNE_LIMIT = "300"
 
 [[kv_namespaces]]
 binding = "GEN"

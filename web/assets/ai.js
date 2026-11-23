@@ -45,6 +45,35 @@ async function toCanvas(src) {
   return c;
 }
 
+/**
+ * Live AI fortune text (worker /fortune -> OpenRouter text+vision model).
+ * -> { head, partner, detail, love, lucky } or null on any failure (caller falls back to random lists).
+ */
+export async function aiFortune(photo, { day, month, yearBE, zodiac }, { timeout = 45000 } = {}) {
+  if (!GEN_API) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const r = await fetch(`${GEN_API}/fortune`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctl.signal,
+      body: JSON.stringify({ photo: photoB64(photo), day, month, yearBE, zodiac }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.head) {
+      console.warn('AI fortune failed', r.status, j);
+      return null;
+    }
+    return j;
+  } catch (e) {
+    console.warn('AI fortune error', e);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** -> { canvas, url } (url = 24 h share link of the AI image) or null on any failure */
 export async function aiGenerate(photo, style, { variant = 0, timeout = 90000 } = {}) {
   if (!GEN_API) return null;
