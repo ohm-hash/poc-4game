@@ -1,5 +1,5 @@
 import { $, $$, showScreen, sleep, pick, rand, sfx, photoCapture, makeCanvas, drawCover, roundRect, shareQR, downloadCanvas, confetti, wrapText, toast } from './common.js';
-import { emoji, aiGenerate, aiFortune, AI_ON } from './ai.js';
+import { emoji, aiFortune, AI_ON } from './ai.js';
 
 export const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const SHORT = ['มกรา', 'กุมภา', 'มีนา', 'เมษา', 'พฤษภา', 'มิถุนา', 'กรกฎา', 'สิงหา', 'กันยา', 'ตุลา', 'พฤศจิกา', 'ธันวา'];
@@ -30,7 +30,7 @@ export function parseThaiDate(raw) {
 const fmtDate = (d) => `${d.day} ${MONTHS[d.month - 1]}${d.yearBE ? ` ${d.yearBE}` : ''}`;
 
 // ---------------- flow ----------------
-let lastAi = null, photo = null, birth = null, fortune = null, resultCanvas = null, listening = null;
+let photo = null, birth = null, fortune = null, resultCanvas = null, listening = null;
 
 $$('[data-back]').forEach((b) => { b.onclick = () => { stopListening(); showScreen(b.dataset.back); if (b.dataset.back === 's-photo') cam.start(); }; });
 $('#begin').onclick = () => { sfx('tap'); showScreen('s-photo'); cam.start(); };
@@ -132,7 +132,35 @@ function showManual() {
   sync();
 }
 
-$('#ok').onclick = () => { stopListening(); sfx('tap'); process(); };
+// What the player wants to know. The worker writes text + picture for the chosen topic.
+const TOPICS = {
+  love: { label: 'ความรัก 💗', icon: '💗', title: 'ดวงความรักของคุณ', sub: 'และเป็น...', step: '💗 กำลังค้นหาดวงเนื้อคู่', soon: 'อีกไม่นานเกินรอ!' },
+  work: { label: 'การงาน 💼', icon: '💼', title: 'ดวงการงานของคุณ', sub: 'ตำแหน่งต่อไปคือ...', step: '💼 กำลังส่องเส้นทางอาชีพ', soon: 'เตรียมตัวปังได้เลย!' },
+  money: { label: 'การเงิน 💰', icon: '💰', title: 'ดวงการเงินของคุณ', sub: 'เงินก้อนโตจะมาจาก...', step: '💰 กำลังนับเงินในอนาคต', soon: 'กระเป๋าตังค์เตรียมตัว!' },
+  luck: { label: 'โชคลาภ 🍀', icon: '🍀', title: 'ดวงโชคลาภของคุณ', sub: 'โชคจะมาแบบ...', step: '🍀 กำลังเรียกโชคให้คุณ', soon: 'โชคกำลังวิ่งมาหา!' },
+};
+let topic = 'love';
+
+function showTopics() {
+  const grid = $('#topicGrid');
+  grid.innerHTML = '';
+  $('#topicPreview').src = `assets/themes/ft-${topic}.jpg`;
+  for (const [key, t] of Object.entries(TOPICS)) {
+    const b = document.createElement('button');
+    b.className = 'theme-card' + (key === topic ? ' sel' : '');
+    b.innerHTML = `<img src="assets/themes/ft-${key}.jpg" alt=""><span>${t.label}</span>`;
+    b.onclick = () => {
+      topic = key;
+      $('#topicPreview').src = `assets/themes/ft-${key}.jpg`;
+      $$('#topicGrid .theme-card').forEach((x) => x.classList.toggle('sel', x === b));
+      sfx('tap');
+    };
+    grid.appendChild(b);
+  }
+  showScreen('s-topic');
+}
+$('#toProcess').onclick = () => { sfx('tap'); process(); };
+$('#ok').onclick = () => { stopListening(); sfx('tap'); showTopics(); };
 
 // ---------------- fortune generation ----------------
 const ZODIAC = [
@@ -157,6 +185,10 @@ const DETAILS = [
 const LUCKY = ['ชานมไข่มุก 🧋', 'สีส้มแสด 🧡', 'หมูปิ้ง 🍢', 'ถุงเท้าคู่โปรด 🧦', 'เลข 9 ✨', 'แมวส้ม 🐈'];
 
 function makeFortune(b) {
+  if (topic !== 'love') {
+    const t = TOPICS[topic];
+    return { head: `${t.title.replace('ของคุณ', '')}ปีนี้ปังมาก!`, partner: pick(['เรื่องที่ไม่คาดฝัน ✨', 'คนใกล้ตัวที่สุด 👀', 'ไอเดียตอนอาบน้ำ 🚿']), detail: 'AI ขอพักดื่มชานมแป๊บ แต่ดวงบอกว่าปีนี้ของคุณสดใสแน่นอน ยิ้มเข้าไว้ เดี๋ยวสิ่งดีๆ วิ่งมาหาเอง ✨', zodiac: zodiac(b.day, b.month), love: Math.round(rand(72, 99)), lucky: pick(LUCKY) };
+  }
   return {
     head: pick(HEADLINES),
     partner: pick(PARTNERS),
@@ -167,22 +199,21 @@ function makeFortune(b) {
   };
 }
 
-async function process(reuse = false) {
+async function process() {
   showScreen('s-process');
+  const T = TOPICS[topic];
+  $('#chk2').firstChild.textContent = T.step;
   const items = $$('#check div');
   items.forEach((d) => d.classList.remove('on', 'ok'));
-  // resolves null when AI is off or fails; "ทำนายอีกครั้ง" reuses the same picture with a new fortune
-  const imgJob = reuse ? Promise.resolve(lastAi) : aiGenerate(photo, 'fortune');
-  // the fortune text is written live by AI from the photo + birthday (random lists are the fallback)
+  // AI writes the fortune from photo + birthday + topic, then draws a picture of that exact fortune
   const zod = zodiac(birth.day, birth.month);
-  const textJob = aiFortune(photo, { ...birth, zodiac: zod });
-  const aiJob = Promise.all([imgJob, textJob]).then(([img]) => img);
+  const aiJob = aiFortune(photo, { ...birth, zodiac: zod, topic });
   const t0 = performance.now();
   let stop = false;
-  (async () => { // progress: steady for the checklist, then creeps toward 99% while the AI finishes
+  (async () => { // progress: steady for the checklist, then creeps toward 99% while the AI finishes (~25-40 s)
     while (!stop) {
       const t = performance.now() - t0;
-      const p = t < 3800 ? (t / 3800) * 0.8 : 0.8 + 0.19 * (1 - Math.exp(-(t - 3800) / 12000));
+      const p = t < 3800 ? (t / 3800) * 0.6 : 0.6 + 0.39 * (1 - Math.exp(-(t - 3800) / 15000));
       $('#pBar').style.width = `${p * 100}%`;
       $('#pPct').textContent = `${Math.round(p * 100)}%`;
       await sleep(120);
@@ -191,18 +222,16 @@ async function process(reuse = false) {
   for (const [i, d] of items.entries()) {
     d.classList.add('on');
     await sleep(950);
-    if (i === items.length - 1) await aiJob; // last step ("making it funny") waits for the AI picture
+    if (i === items.length - 1) await aiJob; // last step ("making it funny") waits for the AI
     d.classList.add('ok');
     sfx('tap');
   }
   const ai = await aiJob;
-  lastAi = ai;
-  const text = await textJob;
-  fortune = text ? { ...text, zodiac: zod } : makeFortune(birth);
+  fortune = ai ? { ...ai, zodiac: zod } : makeFortune(birth);
   stop = true;
   $('#pBar').style.width = '100%';
   $('#pPct').textContent = '100%';
-  if (!ai && AI_ON && !reuse) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
+  if (AI_ON && !ai?.canvas) toast('AI วาดภาพไม่ทัน — ใช้ภาพจำลองแทน');
   await sleep(300);
   resultCanvas = drawResult(ai?.canvas);
   showResult();
@@ -214,7 +243,7 @@ function drawResult(aiImage) {
   const [c, x] = makeCanvas(W, H);
   if (aiImage) {
     drawCover(x, aiImage, 0, 0, W, H, 0.5);
-    for (const [hx, hy, s] of [[40, 40, 40], [600, 50, 34], [590, 400, 40]]) emoji(x, '💗', hx, hy, s, rand(-0.3, 0.3));
+    for (const [hx, hy, s] of [[40, 40, 40], [600, 50, 34], [590, 400, 40]]) emoji(x, TOPICS[topic].icon, hx, hy, s, rand(-0.3, 0.3));
     return c;
   }
   const sky = x.createLinearGradient(0, 0, 0, H);
@@ -239,6 +268,11 @@ function drawResult(aiImage) {
   x.strokeStyle = '#fff';
   roundRect(x, 40, 40, 300, 360, 30);
   x.stroke();
+  if (topic !== 'love') { // fallback picture for other topics: big topic icon instead of a partner
+    emoji(x, TOPICS[topic].icon, 490, 220, 170, 0.1);
+    for (const [hx, hy, s] of [[360, 70, 46], [600, 90, 38], [380, 330, 40], [590, 360, 44], [70, 380, 34]]) emoji(x, TOPICS[topic].icon, hx, hy, s, rand(-0.3, 0.3));
+    return c;
+  }
   // mystery partner
   x.fillStyle = '#5a1a9add';
   x.beginPath(); x.arc(470, 190, 70, 0, 7); x.fill();
@@ -251,13 +285,16 @@ function drawResult(aiImage) {
   x.font = '600 24px Kanit, sans-serif';
   x.fillStyle = '#5a1a9a';
   x.fillText('เนื้อคู่ของคุณ', 470, 92);
-  for (const [hx, hy, s] of [[360, 70, 46], [600, 170, 38], [380, 330, 40], [585, 340, 30], [70, 380, 34]]) emoji(x, '💗', hx, hy, s, rand(-0.3, 0.3));
+  for (const [hx, hy, s] of [[360, 70, 46], [600, 170, 38], [380, 330, 40], [585, 340, 30], [70, 380, 34]]) emoji(x, TOPICS[topic].icon, hx, hy, s, rand(-0.3, 0.3));
   return c;
 }
 
 function showResult() {
   $('#rHead').textContent = fortune.head;
-  $('#rPartner').textContent = `และเป็น... ${fortune.partner}`;
+  const T = TOPICS[topic];
+  $('#rTopic').textContent = `${T.icon} ${T.title} วันนี้คือ... ${T.icon}`;
+  $('#rSoon').textContent = T.soon;
+  $('#rPartner').textContent = `${T.sub} ${fortune.partner}`;
   $('#rDetail').textContent = fortune.detail;
   $('#rZodiac').textContent = fortune.zodiac;
   $('#rLove').textContent = `${fortune.love}%`;
@@ -283,13 +320,13 @@ function souvenirCard() {
   x.textAlign = 'center';
   x.fillStyle = '#fff';
   x.font = '600 28px Kanit, sans-serif';
-  x.fillText('💗 ดวงความรักของคุณ วันนี้คือ... 💗', W / 2, 60);
+  x.fillText(`${TOPICS[topic].icon} ${TOPICS[topic].title} วันนี้คือ... ${TOPICS[topic].icon}`, W / 2, 60);
   x.font = '800 46px Kanit, sans-serif';
   x.fillStyle = '#fff8e6';
   x.fillText(fortune.head, W / 2, 125);
   x.font = '800 34px Kanit, sans-serif';
   x.fillStyle = '#ffe36b';
-  x.fillText(`และเป็น... ${fortune.partner}`, W / 2, 178);
+  x.fillText(`${TOPICS[topic].sub} ${fortune.partner}`, W / 2, 178);
   x.drawImage(resultCanvas, 0, 210, W, (W / resultCanvas.width) * resultCanvas.height);
   let y = 210 + (W / resultCanvas.width) * resultCanvas.height + 60;
   x.fillStyle = '#fff';
@@ -305,4 +342,5 @@ function souvenirCard() {
 
 $('#dl').onclick = () => downloadCanvas(souvenirCard(), 'fortune.png');
 // Same photo + birthday + AI picture, new fortune text. A new player starts from the Home button.
-$('#restart').onclick = () => { sfx('tap'); process(true); };
+// Same photo + birthday + topic, a brand-new fortune and picture. A new player starts from the Home button.
+$('#restart').onclick = () => { sfx('tap'); process(); };

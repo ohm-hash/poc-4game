@@ -5,7 +5,7 @@
 - URL: https://poc-4game-gen.rutango-demo.workers.dev
 - `POST /gen` สร้างรูปจาก OpenRouter ตามสไตล์ `halloween, santa, hero, space, vampire, chibi, fortune`
 - `POST /upload` อัปโหลดภาพที่ระลึกหรือวิดีโอ ไม่เกิน 20 MB เพื่อทำ QR ดาวน์โหลดจริง
-- `POST /fortune` ให้ AI แต่งคำทำนายดวงความรักจากรูปและวันเกิด (โมเดลตั้งที่ `TEXT_MODEL` ตอนนี้ใช้ `anthropic/claude-opus-5.5`) จำกัดวันละ 300 ครั้งที่ `FORTUNE_LIMIT`
+- `POST /fortune` ให้ AI แต่งคำทำนาย (topic: love/work/money/luck) จากรูปและวันเกิด แล้ววาดภาพจากฉากที่ AI เขียนให้ตรงกับคำทำนาย (นับโควตารูปด้วย) (โมเดลตั้งที่ `TEXT_MODEL` ตอนนี้ใช้ `anthropic/claude-opus-5.5`) จำกัดวันละ 300 ครั้งที่ `FORTUNE_LIMIT`
 - `GET /f/:id` ใช้ดาวน์โหลดไฟล์ ไฟล์เก็บไว้ 24 ชั่วโมงแล้วลบเอง
 - จำกัดการสร้างรูป AI วันละ 150 รูป และอัปโหลดวันละ 400 ไฟล์ แก้ได้ใน `wrangler.toml`
 - รับคำขอเฉพาะจาก `https://ohm-hash.github.io` และ `http://localhost:8080`

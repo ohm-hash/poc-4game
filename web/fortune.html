@@ -58,6 +58,7 @@
   /* result screen must fit one 9:16 screen even with longer AI-written text */
   #s-result { gap: .45em; padding-top: 1.2em; }
   #s-result > .sub:first-child { font-size: .8em; }
+  #topicGrid .theme-card span { font-size: 1.15em; }
   #s-result .result-head { padding: .35em .8em; }
   #s-result .result-head .h { font-size: 1.3em; }
   #s-result .result-head .p { font-size: 1em; }
@@ -113,13 +114,25 @@
     </div>
   </section>
 
+  <section class="screen" id="s-topic">
+    <div class="title md">🔮 อยากรู้ดวงเรื่องอะไร?</div>
+    <div class="bubble" style="font-size:.85em">เลือกได้ 1 เรื่อง AI จะทำนายพร้อมวาดภาพให้</div>
+    <img class="shot" id="topicPreview" src="assets/themes/ft-love.jpg" alt="" style="width:76%">
+    <div class="theme-grid wide" id="topicGrid"></div>
+    <div class="spacer"></div>
+    <div class="row">
+      <button class="btn ghost sm" data-back="s-voice">← กลับ</button>
+      <button class="btn" id="toProcess">เปิดดวงเลย ➜</button>
+    </div>
+  </section>
+
   <section class="screen" id="s-process">
     <div class="title md gold-text">AI กำลังเปิดดวง<br>แบบขำๆ ให้คุณอยู่...</div>
     <div class="bubble" style="font-size:.85em">แป๊ปน้า 🐱</div>
     <div class="ball spin"><div class="orb"><b>AI</b></div><div class="base">✨ ✨ ✨</div></div>
     <div class="check" id="check">
       <div>😍 กำลังสแกนความน่ารักของคุณ<i></i></div>
-      <div>💗 กำลังค้นหาดวงเนื้อคู่<i></i></div>
+      <div id="chk2">💗 กำลังค้นหาดวงเนื้อคู่<i></i></div>
       <div>⭐ กำลังคำนวณความปัง<i></i></div>
       <div>😂 กำลังแต่งเรื่องให้ฮาๆ<i></i></div>
     </div>
@@ -127,10 +140,10 @@
   </section>
 
   <section class="screen" id="s-result">
-    <p class="sub">💗 ดวงความรักของคุณ วันนี้คือ... 💗</p>
+    <p class="sub" id="rTopic">💗 ดวงความรักของคุณ วันนี้คือ... 💗</p>
     <div class="result-head"><div class="h" id="rHead"></div><div class="p" id="rPartner"></div></div>
     <div id="rImg" style="width:100%"></div>
-    <div class="detail"><div class="t">อีกไม่นานเกินรอ!</div><div id="rDetail"></div></div>
+    <div class="detail"><div class="t" id="rSoon">อีกไม่นานเกินรอ!</div><div id="rDetail"></div></div>
     <div class="meter">
       <div>ราศี<b id="rZodiac"></b></div>
       <div>ความปัง<b id="rLove"></b></div>

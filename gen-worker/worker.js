@@ -51,7 +51,14 @@ const STYLES = {
 };
 
 // ---- เปิดดวงแบบขำๆ: the fortune text is written live by a text+vision model ----
-const FORTUNE_SYSTEM = `คุณคือหมอดูสายฮาประจำบูธเกมในงานอีเวนต์ ทำนาย "ดวงความรัก" ให้ผู้เล่นแบบขำๆ อบอุ่น เป็นกันเอง
+// topic -> what to predict, what the 2nd line ("partner" field) means, and how to picture it
+const FORTUNE_TOPICS = {
+  love: { th: 'ดวงความรัก', sub: 'เนื้อคู่จะเป็นใคร/แบบไหน', scene: 'a funny romantic moment with a future partner whose face is completely hidden (behind a big heart balloon, a bouquet, or turned away)' },
+  work: { th: 'ดวงการงาน/การเรียน', sub: 'ตำแหน่งหรืองานในฝันแบบฮาๆ', scene: 'a funny career-success moment (office, stage, studio, classroom or any fitting workplace)' },
+  money: { th: 'ดวงการเงิน', sub: 'เงินก้อนโตจะมาจากไหน แบบฮาๆ', scene: 'a funny getting-rich moment (money, gold coins, treasure, shopping, piggy banks)' },
+  luck: { th: 'ดวงโชคลาภ', sub: 'โชคจะมาในรูปแบบไหน แบบฮาๆ', scene: 'a funny super-lucky moment (four-leaf clovers, shooting stars, lucky cats, confetti, prizes)' },
+};
+const fortuneSystem = (t) => `คุณคือหมอดูสายฮาประจำบูธเกมในงานอีเวนต์ ทำนาย "${t.th}" ให้ผู้เล่นแบบขำๆ อบอุ่น เป็นกันเอง
 กติกา:
 - ใช้ภาษาไทยสนุกๆ แบบวัยรุ่น มี emoji ได้นิดหน่อย ทุกคนอ่านแล้วต้องยิ้ม ห้ามเศร้าหรือน่ากลัว
 - ดูรูปแล้วหยิบรายละเอียดเชิงบวกที่เห็นชัดมาเล่นได้ 1 อย่าง เช่น รอยยิ้ม สีเสื้อ แว่นตา ทรงผม ท่าทาง
@@ -59,7 +66,7 @@ const FORTUNE_SYSTEM = `คุณคือหมอดูสายฮาปร�
 - ใช้ราศีที่ให้มาเป็นส่วนหนึ่งของมุกได้
 - ทุกครั้งให้แต่งใหม่ไม่ซ้ำเดิม
 ตอบเป็น JSON อย่างเดียว ไม่มีข้อความอื่น ตามรูปแบบนี้:
-{"head":"หัวข้อสั้นๆ ลงท้ายด้วย ! ไม่เกิน 30 ตัวอักษร","partner":"เนื้อคู่จะเป็นใคร/แบบไหน แบบฮาๆ พร้อม emoji 1 ตัว ไม่เกิน 35 ตัวอักษร","detail":"คำทำนายตลกๆ 1-2 ประโยค ไม่เกิน 130 ตัวอักษร","love":ตัวเลข 60-99,"lucky":"สิ่งนำโชค พร้อม emoji ไม่เกิน 22 ตัวอักษร"}`;
+{"head":"หัวข้อสั้นๆ ลงท้ายด้วย ! ไม่เกิน 30 ตัวอักษร","partner":"${t.sub} พร้อม emoji 1 ตัว ไม่เกิน 35 ตัวอักษร","detail":"คำทำนายตลกๆ 1-2 ประโยค ไม่เกิน 130 ตัวอักษร","love":ตัวเลข 60-99,"lucky":"สิ่งนำโชค พร้อม emoji ไม่เกิน 22 ตัวอักษร","scene":"ENGLISH, one or two sentences: describe one funny, bright picture of the player (call them 'the person') that shows exactly this fortune: ${t.scene}. Concrete setting, props and action. Family-friendly, no text or logos in the picture."}`;
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
 const UPLOAD_TYPES = ['image/png', 'image/jpeg', 'video/webm', 'video/mp4'];
@@ -110,6 +117,38 @@ export default {
       await env.GEN.put('f:' + id, bytes, { expirationTtl: 86400, metadata: { mime, ...meta } });
       return id;
     }
+    // OpenRouter image call with the player's photo as reference -> {mime, b64} or {error}
+    async function makeImage(prompt, photo, ratio) {
+      const reqBase = {
+        model: env.MODEL,
+        prompt,
+        input_references: [{ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + photo } }],
+        n: 1,
+      };
+      // Some models reject quality/format/ratio options, so retry with fewer.
+      const tries = [{ aspect_ratio: ratio, quality: env.QUALITY || 'medium', output_format: 'jpeg' }, { aspect_ratio: ratio }, {}];
+      let r, detail = '';
+      for (const extra of tries) {
+        r = await fetch('https://openrouter.ai/api/v1/images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + env.OPENROUTER_API_KEY,
+            'HTTP-Referer': 'https://ohm-hash.github.io/poc-4game/',
+            'X-Title': 'POC 4 Game',
+          },
+          body: JSON.stringify({ ...reqBase, ...extra }),
+        });
+        if (r.ok) break;
+        detail = (await r.text()).slice(0, 300);
+        if (r.status !== 400 && r.status !== 422) break; // auth/credit/rate errors: retrying won't help
+      }
+      if (!r.ok) return { error: 'openrouter_error', status: r.status, detail };
+      const out = await r.json();
+      const img = out?.data?.[0];
+      if (!img?.b64_json) return { error: 'no_image', reason: out?.error?.message || 'unknown' };
+      return { mime: img.media_type || 'image/png', b64: img.b64_json };
+    }
 
     // ---- upload a finished souvenir / video for the QR ----
     if (url.pathname === '/upload') {
@@ -123,7 +162,8 @@ export default {
       return json({ id, url: fileUrl(id) });
     }
 
-    // ---- live fortune text: photo + birthday -> {head, partner, detail, love, lucky} ----
+    // ---- live fortune: photo + birthday + topic -> text {head, partner, detail, love, lucky}
+    //      + a picture drawn from the scene the text model wrote (so picture and fortune match) ----
     if (url.pathname === '/fortune') {
       if (!env.OPENROUTER_API_KEY) return json({ error: 'not_configured' }, 503);
       let b;
@@ -133,14 +173,16 @@ export default {
       if (!photo || day < 1 || day > 31 || month < 1 || month > 12) return json({ error: 'bad_request' }, 400);
       if (photo.length > 1_500_000) return json({ error: 'photo_too_large' }, 413);
       if (!(await underCap('fortune', +(env.FORTUNE_LIMIT || 300)))) return json({ error: 'daily_limit' }, 429);
+      const topicKey = FORTUNE_TOPICS[b?.topic] ? b.topic : 'love';
+      const topic = FORTUNE_TOPICS[topicKey];
       const zodiac = String(b?.zodiac || '').slice(0, 20);
       const year = b?.yearBE | 0;
-      const userText = `ผู้เล่นเกิดวันที่ ${day} เดือน ${month}${year ? ` ปี พ.ศ. ${year}` : ''} ราศี${zodiac} ช่วยทำนายดวงความรักแบบขำๆ จากรูปนี้หน่อย`;
+      const userText = `ผู้เล่นเกิดวันที่ ${day} เดือน ${month}${year ? ` ปี พ.ศ. ${year}` : ''} ราศี${zodiac} ช่วยทำนาย${topic.th}แบบขำๆ จากรูปนี้หน่อย`;
       const base = {
         model: env.TEXT_MODEL || 'anthropic/claude-opus-5.5',
         max_tokens: 4000,
         messages: [
-          { role: 'system', content: FORTUNE_SYSTEM },
+          { role: 'system', content: fortuneSystem(topic) },
           { role: 'user', content: [
             { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + photo } },
             { type: 'text', text: userText },
@@ -172,6 +214,19 @@ export default {
       const s = (v, n) => String(v ?? '').trim().slice(0, n);
       const fortune = { head: s(f.head, 60), partner: s(f.partner, 70), detail: s(f.detail, 220), love: Math.max(60, Math.min(99, f.love | 0 || 88)), lucky: s(f.lucky, 40) };
       if (!fortune.head || !fortune.detail) return json({ error: 'bad_model_output' }, 502);
+      fortune.topic = topicKey;
+      // the picture: same reference photo, scene written by the text model
+      const scene = s(f.scene, 500) || topic.scene;
+      if (await underCap('gen', +(env.DAILY_LIMIT || 150))) {
+        const img = await makeImage(
+          BASE + `Funny, bright stylized 3D animated-movie illustration of the person. Scene: ${scene}` +
+            (topicKey === 'love' ? ' Any romantic partner must have their face completely hidden.' : ''),
+          photo, '4:3');
+        if (!img.error) {
+          const id = await save(Uint8Array.from(atob(img.b64), (c) => c.charCodeAt(0)), img.mime, { kind: 'fortune', topic: topicKey });
+          Object.assign(fortune, { mime: img.mime, image: img.b64, url: fileUrl(id) });
+        } else fortune.imageError = img.error;
+      } else fortune.imageError = 'daily_limit';
       return json(fortune);
     }
 
@@ -196,36 +251,9 @@ export default {
         'Natural body proportions with normal-length arms, happy excited expression. ' +
         'Isolated on a plain pure white background: no ground, no shadow, no scenery, no other objects, no border, no text, no logos, no flags or patches.'
       : BASE + s.prompt + pose;
-    const reqBase = {
-      model: env.MODEL,
-      prompt,
-      input_references: [{ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + photo } }],
-      n: 1,
-    };
-    // Some models reject quality/format/ratio options, so retry with fewer.
-    const tries = [{ aspect_ratio: s.ratio, quality: env.QUALITY || 'medium', output_format: 'jpeg' }, { aspect_ratio: s.ratio }, {}];
-    let r, detail = '';
-    for (const extra of tries) {
-      r = await fetch('https://openrouter.ai/api/v1/images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + env.OPENROUTER_API_KEY,
-          'HTTP-Referer': 'https://ohm-hash.github.io/poc-4game/',
-          'X-Title': 'POC 4 Game',
-        },
-        body: JSON.stringify({ ...reqBase, ...extra }),
-      });
-      if (r.ok) break;
-      detail = (await r.text()).slice(0, 300);
-      if (r.status !== 400 && r.status !== 422) break; // auth/credit/rate errors: retrying won't help
-    }
-    if (!r.ok) return json({ error: 'openrouter_error', status: r.status, detail }, 502);
-    const out = await r.json();
-    const img = out?.data?.[0];
-    if (!img?.b64_json) return json({ error: 'no_image', reason: out?.error?.message || 'unknown' }, 502);
-    const mime = img.media_type || 'image/png';
-    const id = await save(Uint8Array.from(atob(img.b64_json), (c) => c.charCodeAt(0)), mime, { kind: 'gen', style });
-    return json({ id, mime, image: img.b64_json, url: fileUrl(id) });
+    const img = await makeImage(prompt, photo, s.ratio);
+    if (img.error) return json(img, 502);
+    const id = await save(Uint8Array.from(atob(img.b64), (c) => c.charCodeAt(0)), img.mime, { kind: 'gen', style });
+    return json({ id, mime: img.mime, image: img.b64, url: fileUrl(id) });
   },
 };

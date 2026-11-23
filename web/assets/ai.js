@@ -46,10 +46,11 @@ async function toCanvas(src) {
 }
 
 /**
- * Live AI fortune text (worker /fortune -> OpenRouter text+vision model).
- * -> { head, partner, detail, love, lucky } or null on any failure (caller falls back to random lists).
+ * Live AI fortune (worker /fortune): a text+vision model writes the fortune and a scene,
+ * then the image model draws that scene with the player's face.
+ * -> { head, partner, detail, love, lucky, canvas? } or null on any failure (caller falls back to random lists).
  */
-export async function aiFortune(photo, { day, month, yearBE, zodiac }, { timeout = 45000 } = {}) {
+export async function aiFortune(photo, { day, month, yearBE, zodiac, topic }, { timeout = 120000 } = {}) {
   if (!GEN_API) return null;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeout);
@@ -58,13 +59,16 @@ export async function aiFortune(photo, { day, month, yearBE, zodiac }, { timeout
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctl.signal,
-      body: JSON.stringify({ photo: photoB64(photo), day, month, yearBE, zodiac }),
+      body: JSON.stringify({ photo: photoB64(photo), day, month, yearBE, zodiac, topic }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.head) {
       console.warn('AI fortune failed', r.status, j);
       return null;
     }
+    if (j.image) j.canvas = await toCanvas(`data:${j.mime};base64,${j.image}`); // picture drawn from the same fortune
+    else if (j.imageError) console.warn('AI fortune picture failed', j.imageError);
+    delete j.image;
     return j;
   } catch (e) {
     console.warn('AI fortune error', e);
