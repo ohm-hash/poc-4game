@@ -1,9 +1,9 @@
 import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, shareQR, downloadCanvas, animate, confetti, progressWhile, toast } from './common.js';
 import { THEMES, stylize, souvenir, aiGenerate, AI_ON } from './ai.js';
 
-const PAIRS = 8, TIME = 90;
-const AI_IMAGES = 4; // real AI images per player; the 8 pairs are made from these + badge/frame variants
-const FRAMES = ['#ffd84a', '#ff4d6d', '#4dd2ff', '#7dff7a', '#ffffff', '#b46bff', '#ff9d00', '#00e0b0'];
+const PAIRS = 10, TIME = 120;
+const AI_IMAGES = 5; // real AI images per player (all generated at once); each is used for 2 of the 10 pairs with a different badge/frame
+const FRAMES = ['#ffd84a', '#ff4d6d', '#4dd2ff', '#7dff7a', '#ffffff', '#b46bff', '#ff9d00', '#00e0b0', '#ff66cc', '#c8ff00'];
 let photo = null, theme = 'halloween', seed = 1, images = [], game = null, fav = 0;
 
 const cam = photoCapture($('#cap'), {
@@ -63,7 +63,7 @@ async function generate() {
     ai = (await progressWhile(Promise.all(jobs), bar, 25000)).filter(Boolean);
     if (!ai.length) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
   }
-  $('#genMsg').textContent = 'กำลังจัดการ์ด 8 คู่...';
+  $('#genMsg').textContent = `กำลังจัดการ์ด ${PAIRS} คู่...`;
   for (let i = 0; i < PAIRS; i++) {
     if (!ai.length) await animate(420, (p) => bar((i + p) / PAIRS));
     const src = ai.length ? ai[i % ai.length].canvas : photo;
@@ -177,4 +177,5 @@ const makeCard = () => souvenir({
   lines: [`คะแนน ${game.score}`, `จับคู่ได้ ${game.pairs}/${PAIRS} คู่ • Theme ${THEMES[theme].label}`],
 });
 $('#dl').onclick = () => downloadCanvas(makeCard(), 'memory-match.png');
-$('#again').onclick = () => { showScreen('s-capture'); cam.start(); };
+// Play again with the same AI images. A new player starts from the Home button (game list).
+$('#again').onclick = () => { sfx('tap'); startGame(); };

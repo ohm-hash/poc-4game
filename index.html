@@ -1,5 +1,11 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>POC 4 Game</title>
+<script>
+  // LINE in-app browser -> open in the default browser
+  if (/\bLine\//i.test(navigator.userAgent) && !/openExternalBrowser/.test(location.search)) {
+    location.replace('web/?openExternalBrowser=1');
+  }
+</script>
 <meta http-equiv="refresh" content="0; url=web/">
 <a href="web/">เปิด POC 4 Game</a>

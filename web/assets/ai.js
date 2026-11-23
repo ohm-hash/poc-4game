@@ -15,9 +15,43 @@ function photoB64(photo) {
   return c.toDataURL('image/jpeg', 0.85).split(',')[1];
 }
 
+// ---- cache for the built-in sample photo: generate once, reuse on every later round ----
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('poc4game', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('ai');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function cacheGet(key) {
+  try {
+    const db = await idb();
+    return await new Promise((res) => {
+      const q = db.transaction('ai').objectStore('ai').get(key);
+      q.onsuccess = () => res(q.result || null);
+      q.onerror = () => res(null);
+    });
+  } catch { return null; }
+}
+async function cachePut(key, value) {
+  try { (await idb()).transaction('ai', 'readwrite').objectStore('ai').put(value, key); } catch { /* storage unavailable */ }
+}
+async function toCanvas(src) {
+  const img = await loadImage(src);
+  const [c, x] = makeCanvas(img.width, img.height);
+  x.drawImage(img, 0, 0);
+  return c;
+}
+
 /** -> { canvas, url } (url = 24 h share link of the AI image) or null on any failure */
 export async function aiGenerate(photo, style, { variant = 0, timeout = 90000 } = {}) {
   if (!GEN_API) return null;
+  const cacheKey = photo.dataset?.sample ? `sample:${style}:${variant}` : null;
+  if (cacheKey) {
+    const hit = await cacheGet(cacheKey);
+    if (hit) return { canvas: await toCanvas(hit), url: null };
+  }
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeout);
   try {
@@ -32,10 +66,9 @@ export async function aiGenerate(photo, style, { variant = 0, timeout = 90000 } 
       console.warn('AI generate failed', r.status, j);
       return null;
     }
-    const img = await loadImage(`data:${j.mime};base64,${j.image}`);
-    const [c, x] = makeCanvas(img.width, img.height);
-    x.drawImage(img, 0, 0);
-    return { canvas: c, url: j.url };
+    const dataUrl = `data:${j.mime};base64,${j.image}`;
+    if (cacheKey) cachePut(cacheKey, dataUrl);
+    return { canvas: await toCanvas(dataUrl), url: j.url };
   } catch (e) {
     console.warn('AI generate error', e);
     return null;

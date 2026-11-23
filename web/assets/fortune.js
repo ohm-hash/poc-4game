@@ -30,7 +30,7 @@ export function parseThaiDate(raw) {
 const fmtDate = (d) => `${d.day} ${MONTHS[d.month - 1]}${d.yearBE ? ` ${d.yearBE}` : ''}`;
 
 // ---------------- flow ----------------
-let photo = null, birth = null, fortune = null, resultCanvas = null, listening = null;
+let lastAi = null, photo = null, birth = null, fortune = null, resultCanvas = null, listening = null;
 
 $$('[data-back]').forEach((b) => { b.onclick = () => { stopListening(); showScreen(b.dataset.back); if (b.dataset.back === 's-photo') cam.start(); }; });
 $('#begin').onclick = () => { sfx('tap'); showScreen('s-photo'); cam.start(); };
@@ -167,12 +167,13 @@ function makeFortune(b) {
   };
 }
 
-async function process() {
+async function process(reuse = false) {
   showScreen('s-process');
   const items = $$('#check div');
   items.forEach((d) => d.classList.remove('on', 'ok'));
   fortune = makeFortune(birth);
-  const aiJob = aiGenerate(photo, 'fortune'); // resolves null when AI is off or fails
+  // resolves null when AI is off or fails; "ทำนายอีกครั้ง" reuses the same picture with a new fortune
+  const aiJob = reuse ? Promise.resolve(lastAi) : aiGenerate(photo, 'fortune');
   const t0 = performance.now();
   let stop = false;
   (async () => { // progress: steady for the checklist, then creeps toward 99% while the AI finishes
@@ -192,10 +193,11 @@ async function process() {
     sfx('tap');
   }
   const ai = await aiJob;
+  lastAi = ai;
   stop = true;
   $('#pBar').style.width = '100%';
   $('#pPct').textContent = '100%';
-  if (!ai && AI_ON) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
+  if (!ai && AI_ON && !reuse) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
   await sleep(300);
   resultCanvas = drawResult(ai?.canvas);
   showResult();
@@ -297,4 +299,5 @@ function souvenirCard() {
 }
 
 $('#dl').onclick = () => downloadCanvas(souvenirCard(), 'fortune.png');
-$('#restart').onclick = () => { sfx('tap'); showScreen('s-start'); };
+// Same photo + birthday + AI picture, new fortune text. A new player starts from the Home button.
+$('#restart').onclick = () => { sfx('tap'); process(true); };

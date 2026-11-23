@@ -436,5 +436,6 @@ function makePoster() {
 
 $('#dlPoster').onclick = () => posterCanvas && downloadCanvas(posterCanvas, 'catch-and-win.png');
 $('#dlVideo').onclick = () => videoBlob && downloadBlob(videoBlob, `catch-and-win.${videoBlob.type.includes('mp4') ? 'mp4' : 'webm'}`);
-$('#again').onclick = () => { sfx('tap'); showScreen('s-start'); };
+// Same character again. A new player starts from the Home button.
+$('#again').onclick = () => { sfx('tap'); startGame(); };
 

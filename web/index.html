@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="assets/line.js"></script>
 <title>POC 4 Game</title>
 <link rel="stylesheet" href="assets/style.css">
 <style>
@@ -25,14 +26,14 @@
     <div class="title lg gold-text">POC 4 GAME</div>
     <p class="sub">เกม AI Photo สำหรับบูธ / Kiosk จอสัมผัส<br><span class="muted">เลือกเกมที่ต้องการทดลองเล่น</span></p>
     <div class="games">
-      <a class="game" href="memory.html"><span class="ic">🃏</span><div><h2>Memory Match</h2><p>ถ่ายรูป → เลือก Theme → AI สร้างภาพ 8 คู่ → จับคู่การ์ด → รับรูปกลับบ้าน</p></div><span class="go">➜</span></a>
+      <a class="game" href="memory.html"><span class="ic">🃏</span><div><h2>Memory Match</h2><p>ถ่ายรูป → เลือก Theme → AI สร้างภาพ 10 คู่ → จับคู่การ์ด → รับรูปกลับบ้าน</p></div><span class="go">➜</span></a>
       <a class="game" href="photohunt.html"><span class="ic">🔍</span><div><h2>Photohunt</h2><p>AI สร้างภาพธีมแวมไพร์จากรูปคุณ ซ่อนจุดต่าง 8 จุด หาให้ครบก่อนหมดเวลา</p></div><span class="go">➜</span></a>
       <a class="game" href="catch.html"><span class="ic">🧺</span><div><h2>รับของไข่ตก! Catch &amp; Win</h2><p>AI เปลี่ยนคุณเป็นตัวละคร 2D รับไข่ รับของ หลบระเบิด บันทึกวิดีโอการเล่น</p></div><span class="go">➜</span></a>
       <a class="game" href="fortune.html"><span class="ic">🔮</span><div><h2>เปิดดวงแบบขำๆ กับ AI</h2><p>ถ่ายรูป + พูดวันเกิด ให้ AI ทำนายดวงความรักแบบฮาๆ พร้อมภาพเนื้อคู่</p></div><span class="go">➜</span></a>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="fs">⛶ เต็มจอ (Kiosk)</button>
-    <p class="poc-note">POC: การสร้างภาพ "AI" จำลองด้วย Canvas ในเบราว์เซอร์ — เวอร์ชันจริงเชื่อม AI image API ได้ที่ assets/ai.js</p>
+    <p class="poc-note">AI สร้างภาพผ่าน OpenRouter • ถ้า AI ไม่ตอบจะใช้ภาพจำลองแทนอัตโนมัติ</p>
   </section>
 </main>
 <script>

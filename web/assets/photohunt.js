@@ -3,7 +3,7 @@ import { stylize, emoji, souvenir, aiGenerate, AI_ON } from './ai.js';
 
 const W = 600, H = 450, N = 8, TIME = 90, R = 30;
 const STICKERS = ['🎃', '🦇', '🌕', '🕷️', '👻', '⭐', '🕯️', '🍬', '💀', '🥀'];
-let photo, portrait, imgA, imgB, diffs = [], found = 0, timer, over = true, seed = 1;
+let photo, lastScene = null, lastDetailed = false, portrait, imgA, imgB, diffs = [], found = 0, timer, over = true, seed = 1;
 
 const cam = photoCapture($('#cap'), { round: true, hint: 'มองกล้อง แล้วกดปุ่มถ่ายรูป 📸', onPhoto: (c) => { photo = c; generate(); } });
 
@@ -37,7 +37,9 @@ async function generate() {
     portrait.style.filter = '';
     scene = stylize(photo, 'vampire', { w: W, h: H, seed });
   }
-  build(scene, !!ai);
+  lastScene = scene;
+  lastDetailed = !!ai;
+  build(scene, lastDetailed);
   sfx('good');
   await sleep(900);
   play();
@@ -205,4 +207,5 @@ const makeCard = () => souvenir({
   c1: '#3a4a8a', c2: '#0b1030', imgH: Math.min(560, Math.round((520 * portrait.height) / portrait.width)),
 });
 $('#dl').onclick = () => downloadCanvas(makeCard(), 'photohunt.png');
-$('#home').onclick = () => showScreen('s-home');
+// Same AI picture, freshly hidden differences. A new player starts from the Home button.
+$('#replay').onclick = () => { sfx('tap'); build(lastScene, lastDetailed); play(); };

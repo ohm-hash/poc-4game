@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script src="assets/line.js"></script>
 <title>Memory Match</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -20,7 +21,7 @@
   .theme-card.sel { border-color: var(--gold); transform: scale(1.04); box-shadow: 0 0 0 .2em #fff, 0 0 1.5em var(--gold); }
   .theme-card.sel::after { content: '✓'; position: absolute; top: .3em; right: .3em; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--green); display: grid; place-items: center; font-weight: 800; }
 
-  .gen-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5em; width: 100%; }
+  .gen-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5em; width: 100%; }
   .gen-slot { aspect-ratio: 1; border-radius: .7em; background: #0003; border: 2px dashed #fff6; overflow: hidden; display: grid; place-items: center; }
   .gen-slot::before { content: '✨'; font-size: 1.6em; animation: pulse 1s infinite; }
   .gen-slot.done { border: .15em solid var(--gold); }
@@ -28,7 +29,7 @@
   .gen-slot img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn .4s; }
   @keyframes pulse { 50% { opacity: .3; transform: scale(.8); } }
 
-  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5em; width: 100%; perspective: 900px; }
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45em; width: 92% !important; width: 100%; perspective: 900px; }
   .mcard { aspect-ratio: 1; background: none; border: 0; padding: 0; cursor: pointer; }
   .mcard .inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .4s; }
   .mcard.flipped .inner { transform: rotateY(180deg); }
@@ -58,7 +59,7 @@
 
   <section class="screen active" id="s-capture">
     <div class="title lg gold-text">MEMORY<br>MATCH 🃏</div>
-    <p class="sub">จับคู่ความสนุก ลุ้นรับของที่ระลึก<br><span class="muted">AI จะสร้างภาพสุดน่ารักตาม Theme ให้คุณจับคู่ 8 คู่</span></p>
+    <p class="sub">จับคู่ความสนุก ลุ้นรับของที่ระลึก<br><span class="muted">AI จะสร้างภาพสุดน่ารักตาม Theme ให้คุณจับคู่ 10 คู่</span></p>
     <div class="step"><b>1</b>ถ่ายรูป หรือ อัปโหลดรูป</div>
     <div id="cap"></div>
   </section>
@@ -71,21 +72,21 @@
   </section>
 
   <section class="screen" id="s-gen">
-    <div class="step"><b>3</b>AI สร้างภาพ 8 คู่</div>
+    <div class="step"><b>3</b>AI สร้างภาพ 10 คู่</div>
     <p class="sub" id="genMsg">AI กำลังสร้างภาพให้คุณ...</p>
-    <div class="row"><div class="bar"><i id="genBar"></i></div><b id="genCount" style="white-space:nowrap">0 / 8</b></div>
+    <div class="row"><div class="bar"><i id="genBar"></i></div><b id="genCount" style="white-space:nowrap">0 / 5</b></div>
     <div class="gen-grid" id="genGrid"></div>
   </section>
 
   <section class="screen" id="s-game">
     <div class="step"><b>4</b>เริ่มเกม จับคู่ให้ได้!</div>
     <div class="hud">
-      <div><small>⏱ เวลา</small><b id="hTime">01:30</b></div>
-      <div><small>คู่ที่จับได้</small><b id="hPairs">0 / 8</b></div>
+      <div><small>⏱ เวลา</small><b id="hTime">02:00</b></div>
+      <div><small>คู่ที่จับได้</small><b id="hPairs">0 / 10</b></div>
       <div><small>คะแนน</small><b id="hScore">0</b></div>
     </div>
     <div class="board" id="board"></div>
-    <p class="sub muted">แตะการ์ดเพื่อเปิด หาภาพที่เหมือนกันให้ครบ 8 คู่</p>
+    <p class="sub muted">แตะการ์ดเพื่อเปิด หาภาพที่เหมือนกันให้ครบ 10 คู่</p>
   </section>
 
   <section class="screen" id="s-result">
@@ -93,7 +94,7 @@
     <p class="sub" id="rSub">คุณจับคู่ครบทุกคู่แล้ว</p>
     <div class="hud">
       <div><small>เวลาที่ใช้</small><b id="rTime">00:00</b></div>
-      <div><small>จับคู่ได้</small><b id="rPairs">0 / 8</b></div>
+      <div><small>จับคู่ได้</small><b id="rPairs">0 / 10</b></div>
       <div><small>คะแนน</small><b id="rScore">0</b></div>
     </div>
     <p class="sub">เลือกรูปที่ชอบ ← ปัด →</p>
@@ -104,7 +105,7 @@
       <div class="col"><p class="sub">สแกนเพื่อดาวน์โหลด<br>รูปของคุณ</p><button class="btn blue sm" id="dl">⬇ ดาวน์โหลด</button></div>
     </div>
     <p class="poc-note">POC: QR เป็นลิงก์จำลอง — เวอร์ชันจริงจะอัปโหลดรูปขึ้น server แล้วให้สแกนโหลดได้ทันที</p>
-    <button class="btn" id="again">🔄 เล่นอีกครั้ง</button>
+    <div class="row"><a class="btn ghost sm" href="index.html">🏠 ผู้เล่นใหม่</a><button class="btn" id="again">🔄 เล่นอีกครั้ง</button></div>
   </section>
 </main>
 <script type="module" src="assets/memory.js"></script>

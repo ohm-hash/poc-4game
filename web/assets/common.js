@@ -221,7 +221,6 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
     </div>
     ${hint ? `<p class="hint">${hint}</p>` : ''}
     <div class="cam-actions">
-      <label class="btn ghost sm">🖼️ อัปโหลด<input type="file" accept="image/*" hidden></label>
       <button class="shutter" type="button" aria-label="ถ่ายรูป"></button>
       <button class="btn ghost sm cam-sample" type="button">🧑 รูปตัวอย่าง</button>
     </div>`;
@@ -240,7 +239,7 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
     busy = false;
     if (stream) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      showMsg('เบราว์เซอร์นี้เปิดกล้องไม่ได้<br>กรุณาอัปโหลดรูป หรือใช้รูปตัวอย่าง');
+      showMsg('เบราว์เซอร์นี้เปิดกล้องไม่ได้<br>กดปุ่ม "รูปตัวอย่าง" เพื่อเล่นได้เลย');
       return;
     }
     try {
@@ -248,7 +247,7 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
       video.srcObject = stream;
       await video.play().catch(() => {});
     } catch {
-      showMsg('เปิดกล้องไม่ได้<br>กรุณาอัปโหลดรูป หรือใช้รูปตัวอย่าง');
+      showMsg('เปิดกล้องไม่ได้<br>กดปุ่ม "รูปตัวอย่าง" เพื่อเล่นได้เลย');
     }
   }
   function done(canvas) {
@@ -259,7 +258,7 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
   $('.shutter', container).onclick = async () => {
     if (busy) return;
     if (!stream || !video.videoWidth) {
-      showMsg('ยังไม่มีภาพจากกล้อง<br>กรุณาอัปโหลดรูป หรือใช้รูปตัวอย่าง');
+      showMsg('ยังไม่มีภาพจากกล้อง<br>กดปุ่ม "รูปตัวอย่าง" เพื่อเล่นได้เลย');
       return;
     }
     busy = true;
@@ -279,16 +278,6 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
     await sleep(250);
     done(c);
   };
-  $('input[type=file]', container).onchange = async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const img = await loadImage(URL.createObjectURL(f));
-    const s = Math.min(1, 1280 / Math.max(img.width, img.height));
-    const [c, ctx] = makeCanvas(Math.round(img.width * s), Math.round(img.height * s));
-    ctx.drawImage(img, 0, 0, c.width, c.height);
-    e.target.value = '';
-    done(c);
-  };
   $('.cam-sample', container).onclick = () => done(sampleFace());
   return { start, stop };
 }
@@ -296,6 +285,7 @@ export function photoCapture(container, { onPhoto, round = false, hint = '' } = 
 // A drawn placeholder portrait so the games can be demoed without a camera.
 export function sampleFace() {
   const [c, x] = makeCanvas(720, 960);
+  c.dataset.sample = '1'; // AI results for this photo are cached (see aiGenerate)
   const g = x.createLinearGradient(0, 0, 0, 960);
   g.addColorStop(0, '#f3e3cf'); g.addColorStop(1, '#d9bfa3');
   x.fillStyle = g; x.fillRect(0, 0, 720, 960);
