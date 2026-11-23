@@ -1,9 +1,48 @@
-// Mock "AI" image generation for the POC.
-// Everything runs in the browser with Canvas filters + overlays, so the POC works offline.
-// To plug in a real image model later, replace stylize() / cartoonHead() with an API call
-// that returns an image of the same size — the games only depend on these function shapes.
+// AI image generation.
+// aiGenerate() calls the Cloudflare Worker (gen-worker/) which calls OpenRouter.
+// If the worker is not set or fails, the games fall back to the Canvas mock below
+// (stylize / cartoonHead), so a kiosk never gets stuck.
 
-import { makeCanvas, drawCover, seeded, wrapText } from './common.js';
+import { makeCanvas, drawCover, seeded, wrapText, loadImage } from './common.js';
+import { GEN_API } from './config.js';
+
+export const AI_ON = !!GEN_API;
+
+function photoB64(photo) {
+  const s = Math.min(1, 1024 / Math.max(photo.width, photo.height));
+  const [c, x] = makeCanvas(Math.round(photo.width * s), Math.round(photo.height * s));
+  x.drawImage(photo, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+}
+
+/** -> { canvas, url } (url = 24 h share link of the AI image) or null on any failure */
+export async function aiGenerate(photo, style, { variant = 0, timeout = 90000 } = {}) {
+  if (!GEN_API) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const r = await fetch(`${GEN_API}/gen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctl.signal,
+      body: JSON.stringify({ style, variant, photo: photoB64(photo) }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.image) {
+      console.warn('AI generate failed', r.status, j);
+      return null;
+    }
+    const img = await loadImage(`data:${j.mime};base64,${j.image}`);
+    const [c, x] = makeCanvas(img.width, img.height);
+    x.drawImage(img, 0, 0);
+    return { canvas: c, url: j.url };
+  } catch (e) {
+    console.warn('AI generate error', e);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
@@ -46,11 +85,18 @@ export function posterize(ctx, w, h, levels = 8) {
  * Themed portrait from the player's photo.
  * variant 0..7 gives a visibly different image (badge, colours, frame) — used for memory pairs.
  */
-export function stylize(photo, key, { w = 512, h = 512, variant = 0, seed = 1, frame = '#ffd84a' } = {}) {
+export function stylize(photo, key, { w = 512, h = 512, variant = 0, seed = 1, frame = '#ffd84a', raw = false } = {}) {
   const t = THEMES[key] || THEMES.halloween;
   const r = seeded(seed * 7919 + variant * 104729 + w);
   const [c, ctx] = makeCanvas(w, h);
   const s = Math.min(w, h);
+
+  // raw = photo is already an AI image: only add the variant badge + frame
+  if (raw) {
+    const zoom = 1 + (variant % 3) * 0.07;
+    drawCover(ctx, photo, -(w * (zoom - 1)) / 2, -(h * (zoom - 1)) / 2, w * zoom, h * zoom, 0.45);
+    return badgeAndFrame(ctx, t, variant, w, h, s, frame, c);
+  }
 
   // 1) photo, slightly zoomed and colour-shifted per variant
   const zoom = 1 + (variant % 3) * 0.07;
@@ -84,7 +130,10 @@ export function stylize(photo, key, { w = 512, h = 512, variant = 0, seed = 1, f
     const y = edge === 1 || edge === 3 ? m + along * (h - 2 * m) : edge === 0 ? m : h - m;
     emoji(ctx, e, x, y, size, (r() - 0.5) * 0.7, 0.9);
   }
+  return badgeAndFrame(ctx, t, variant, w, h, s, frame, c);
+}
 
+function badgeAndFrame(ctx, t, variant, w, h, s, frame, c) {
   // 5) big variant badge — makes each memory pair easy to tell apart
   const bs = s * 0.26;
   ctx.save();
@@ -102,20 +151,21 @@ export function stylize(photo, key, { w = 512, h = 512, variant = 0, seed = 1, f
 }
 
 /** Chibi head for the catch game: circular, punchy colours, outline. */
-export function cartoonHead(photo, size = 320) {
+export function cartoonHead(photo, size = 320, { raw = false } = {}) {
   const [c, ctx] = makeCanvas(size, size);
-  const iw = photo.width, ih = photo.height, side = Math.min(iw, ih) * 0.72;
+  const iw = photo.width, ih = photo.height, side = Math.min(iw, ih) * (raw ? 0.82 : 0.72);
+  const focus = raw ? 0.45 : 0.42;
   ctx.save();
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2 - 6, 0, Math.PI * 2);
   ctx.clip();
   ctx.fillStyle = '#ffe0b8';
   ctx.fillRect(0, 0, size, size);
-  ctx.filter = 'saturate(1.5) contrast(1.15) brightness(1.08)';
-  ctx.drawImage(photo, (iw - side) / 2, Math.max(0, Math.min(ih - side, ih * 0.42 - side / 2)), side, side, 0, 0, size, size);
+  if (!raw) ctx.filter = 'saturate(1.5) contrast(1.15) brightness(1.08)';
+  ctx.drawImage(photo, (iw - side) / 2, Math.max(0, Math.min(ih - side, ih * focus - side / 2)), side, side, 0, 0, size, size);
   ctx.filter = 'none';
   ctx.restore();
-  posterize(ctx, size, size, 6);
+  if (!raw) posterize(ctx, size, size, 6);
   ctx.lineWidth = 8;
   ctx.strokeStyle = '#5a2a00';
   ctx.beginPath();

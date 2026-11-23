@@ -1,7 +1,8 @@
-import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, makeQR, pocLink, downloadCanvas, animate, confetti } from './common.js';
-import { THEMES, stylize, souvenir } from './ai.js';
+import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, shareQR, downloadCanvas, animate, confetti, progressWhile, toast } from './common.js';
+import { THEMES, stylize, souvenir, aiGenerate, AI_ON } from './ai.js';
 
 const PAIRS = 8, TIME = 90;
+const AI_IMAGES = 4; // real AI images per player; the 8 pairs are made from these + badge/frame variants
 const FRAMES = ['#ffd84a', '#ff4d6d', '#4dd2ff', '#7dff7a', '#ffffff', '#b46bff', '#ff9d00', '#00e0b0'];
 let photo = null, theme = 'halloween', seed = 1, images = [], game = null, fav = 0;
 
@@ -43,17 +44,37 @@ async function generate() {
   images = [];
   const grid = $('#genGrid');
   grid.innerHTML = '<div class="gen-slot"></div>'.repeat(PAIRS);
-  $('#genCount').textContent = `0 / ${PAIRS}`;
+  const bar = (p) => { $('#genBar').style.width = `${p * 100}%`; };
+  let ai = [];
+  if (AI_ON) {
+    $('#genMsg').textContent = 'AI กำลังสร้างภาพให้คุณ... (ประมาณ 20–40 วินาที)';
+    let n = 0;
+    $('#genCount').textContent = `0 / ${AI_IMAGES}`;
+    const jobs = Array.from({ length: AI_IMAGES }, (_, v) => aiGenerate(photo, theme, { variant: v }).then((r) => {
+      n++;
+      $('#genCount').textContent = `${n} / ${AI_IMAGES}`;
+      if (r) {
+        grid.children[v].innerHTML = `<img src="${r.canvas.toDataURL('image/jpeg', 0.8)}" alt="">`;
+        grid.children[v].classList.add('done');
+        sfx('tap');
+      }
+      return r;
+    }));
+    ai = (await progressWhile(Promise.all(jobs), bar, 25000)).filter(Boolean);
+    if (!ai.length) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
+  }
+  $('#genMsg').textContent = 'กำลังจัดการ์ด 8 คู่...';
   for (let i = 0; i < PAIRS; i++) {
-    await animate(420, (p) => { $('#genBar').style.width = `${((i + p) / PAIRS) * 100}%`; });
-    const c = stylize(photo, theme, { w: 360, h: 360, variant: i, seed, frame: FRAMES[i] });
+    if (!ai.length) await animate(420, (p) => bar((i + p) / PAIRS));
+    const src = ai.length ? ai[i % ai.length].canvas : photo;
+    const c = stylize(src, theme, { w: 360, h: 360, variant: i, seed, frame: FRAMES[i], raw: !!ai.length });
     images.push({ canvas: c, url: c.toDataURL('image/jpeg', 0.85) });
     grid.children[i].innerHTML = `<img src="${images[i].url}" alt="">`;
     grid.children[i].classList.add('done');
     $('#genCount').textContent = `${i + 1} / ${PAIRS}`;
-    sfx('tap');
+    if (ai.length) await sleep(120);
   }
-  await sleep(600);
+  await sleep(700);
   startGame();
 }
 
@@ -118,7 +139,6 @@ function end(win) {
   $('#rPairs').textContent = `${game.pairs} / ${PAIRS}`;
   $('#rScore').textContent = game.score;
   buildCarousel();
-  makeQR($('#qr'), pocLink('memory'));
   showScreen('s-result');
   if (win) { sfx('win'); confetti($('.stage')); }
 }
@@ -127,8 +147,11 @@ function buildCarousel() {
   const car = $('#carousel'), dots = $('#dots');
   car.innerHTML = images.map((im, i) => `<img src="${im.url}" data-i="${i}" alt="">`).join('');
   dots.innerHTML = '<i></i>'.repeat(images.length);
+  let qrTimer;
   const select = (i) => {
     fav = i;
+    clearTimeout(qrTimer); // re-make the QR for the picked image once swiping settles
+    qrTimer = setTimeout(() => shareQR($('#qr'), $('.poc-note'), makeCard(), 'memory'), 700);
     $$('img', car).forEach((im, j) => im.classList.toggle('sel', j === i));
     $$('i', dots).forEach((d, j) => d.classList.toggle('on', j === i));
   };
@@ -148,12 +171,10 @@ function buildCarousel() {
   };
 }
 
-$('#dl').onclick = () => {
-  const card = souvenir({
-    image: images[fav].canvas,
-    title: 'MEMORY MATCH',
-    lines: [`คะแนน ${game.score}`, `จับคู่ได้ ${game.pairs}/${PAIRS} คู่ • Theme ${THEMES[theme].label}`],
-  });
-  downloadCanvas(card, 'memory-match.png');
-};
+const makeCard = () => souvenir({
+  image: images[fav].canvas,
+  title: 'MEMORY MATCH',
+  lines: [`คะแนน ${game.score}`, `จับคู่ได้ ${game.pairs}/${PAIRS} คู่ • Theme ${THEMES[theme].label}`],
+});
+$('#dl').onclick = () => downloadCanvas(makeCard(), 'memory-match.png');
 $('#again').onclick = () => { showScreen('s-capture'); cam.start(); };

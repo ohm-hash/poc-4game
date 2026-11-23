@@ -1,5 +1,5 @@
-import { $, $$, showScreen, sleep, pick, rand, sfx, photoCapture, makeCanvas, drawCover, roundRect, makeQR, pocLink, downloadCanvas, animate, confetti, wrapText } from './common.js';
-import { emoji } from './ai.js';
+import { $, $$, showScreen, sleep, pick, rand, sfx, photoCapture, makeCanvas, drawCover, roundRect, shareQR, downloadCanvas, confetti, wrapText, toast } from './common.js';
+import { emoji, aiGenerate, AI_ON } from './ai.js';
 
 export const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const SHORT = ['มกรา', 'กุมภา', 'มีนา', 'เมษา', 'พฤษภา', 'มิถุนา', 'กรกฎา', 'สิงหา', 'กันยา', 'ตุลา', 'พฤศจิกา', 'ธันวา'];
@@ -172,23 +172,44 @@ async function process() {
   const items = $$('#check div');
   items.forEach((d) => d.classList.remove('on', 'ok'));
   fortune = makeFortune(birth);
-  const steps = items.length, per = 950;
-  const bar = animate(per * steps, (p) => { $('#pBar').style.width = `${p * 100}%`; $('#pPct').textContent = `${Math.round(p * 100)}%`; });
-  for (const d of items) {
+  const aiJob = aiGenerate(photo, 'fortune'); // resolves null when AI is off or fails
+  const t0 = performance.now();
+  let stop = false;
+  (async () => { // progress: steady for the checklist, then creeps toward 99% while the AI finishes
+    while (!stop) {
+      const t = performance.now() - t0;
+      const p = t < 3800 ? (t / 3800) * 0.8 : 0.8 + 0.19 * (1 - Math.exp(-(t - 3800) / 12000));
+      $('#pBar').style.width = `${p * 100}%`;
+      $('#pPct').textContent = `${Math.round(p * 100)}%`;
+      await sleep(120);
+    }
+  })();
+  for (const [i, d] of items.entries()) {
     d.classList.add('on');
-    await sleep(per);
+    await sleep(950);
+    if (i === items.length - 1) await aiJob; // last step ("making it funny") waits for the AI picture
     d.classList.add('ok');
     sfx('tap');
   }
-  await bar;
-  resultCanvas = drawResult();
+  const ai = await aiJob;
+  stop = true;
+  $('#pBar').style.width = '100%';
+  $('#pPct').textContent = '100%';
+  if (!ai && AI_ON) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
+  await sleep(300);
+  resultCanvas = drawResult(ai?.canvas);
   showResult();
 }
 
 // photo of the player + a mystery "future partner" silhouette on a holiday backdrop
-function drawResult() {
+function drawResult(aiImage) {
   const W = 640, H = 440;
   const [c, x] = makeCanvas(W, H);
+  if (aiImage) {
+    drawCover(x, aiImage, 0, 0, W, H, 0.5);
+    for (const [hx, hy, s] of [[40, 40, 40], [600, 50, 34], [590, 400, 40]]) emoji(x, '💗', hx, hy, s, rand(-0.3, 0.3));
+    return c;
+  }
   const sky = x.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, '#7fd3ff');
   sky.addColorStop(0.6, '#e8f7ff');
@@ -238,7 +259,7 @@ function showResult() {
   view.getContext('2d').drawImage(resultCanvas, 0, 0);
   view.className = 'shot';
   $('#rImg').replaceChildren(view);
-  makeQR($('#qr'), pocLink('fortune'));
+  shareQR($('#qr'), $('.poc-note'), souvenirCard(), 'fortune');
   showScreen('s-result');
   sfx('win');
   confetti($('.stage'));

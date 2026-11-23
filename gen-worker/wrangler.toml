@@ -1,0 +1,15 @@
+name = "poc-4game-gen"
+main = "worker.js"
+compatibility_date = "2025-06-01"
+
+[vars]
+DAILY_LIMIT = "150"
+UPLOAD_LIMIT = "400"
+ALLOWED_ORIGINS = "https://ohm-hash.github.io,http://localhost:8080"
+# OpenRouter model id (pick at openrouter.ai/models, filter output = image; must accept image input)
+MODEL = "google/gemini-nano-banana-2.1"
+QUALITY = "medium"
+
+[[kv_namespaces]]
+binding = "GEN"
+id = "f1503a01c8424ac7be9077b78d37c4b0"

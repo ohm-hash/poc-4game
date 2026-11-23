@@ -154,6 +154,47 @@ export function makeQR(el, text) {
     el.textContent = 'QR';
   }
 }
+/**
+ * Upload a souvenir (canvas or Blob) to the worker and show a QR that downloads it.
+ * Falls back to a placeholder QR when there is no worker / the upload fails.
+ */
+export async function shareQR(qrEl, noteEl, source, kind) {
+  const { GEN_API } = await import('./config.js');
+  qrEl.innerHTML = '<div style="color:#8a2a00;font-size:.75em;display:grid;place-items:center;height:100%;text-align:center">กำลังสร้าง QR...</div>';
+  let url = null;
+  if (GEN_API) {
+    try {
+      const blob = source instanceof Blob ? source : await new Promise((r) => source.toBlob(r, 'image/jpeg', 0.9));
+      const r = await fetch(`${GEN_API}/upload`, { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
+      const j = await r.json();
+      if (r.ok) url = j.url;
+      else console.warn('upload failed', r.status, j);
+    } catch (e) {
+      console.warn('upload error', e);
+    }
+  }
+  makeQR(qrEl, url || pocLink(kind));
+  if (noteEl) {
+    noteEl.textContent = url
+      ? 'สแกนแล้วกดค้างที่ไฟล์เพื่อบันทึก • ลิงก์ใช้ได้ 24 ชั่วโมง'
+      : 'POC: QR เป็นลิงก์จำลอง (อัปโหลดไม่ได้) — ใช้ปุ่มดาวน์โหลดแทน';
+  }
+  return url;
+}
+
+/** Ease a progress bar toward 95% while `promise` runs, then fill it. Resolves with the promise's value. */
+export async function progressWhile(promise, onP, expectedMs = 20000) {
+  let done = false;
+  promise.then(() => { done = true; }, () => { done = true; });
+  const t0 = performance.now();
+  while (!done) {
+    onP(0.95 * (1 - Math.exp(-(performance.now() - t0) / expectedMs)));
+    await sleep(120);
+  }
+  onP(1);
+  return promise;
+}
+
 export function downloadBlob(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

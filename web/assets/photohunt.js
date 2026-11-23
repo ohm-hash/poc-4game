@@ -1,5 +1,5 @@
-import { $, $$, showScreen, sleep, shuffle, rand, pick, fmtTime, sfx, Countdown, photoCapture, makeCanvas, makeQR, pocLink, downloadCanvas, animate, confetti } from './common.js';
-import { stylize, emoji, souvenir } from './ai.js';
+import { $, $$, showScreen, sleep, shuffle, rand, pick, fmtTime, sfx, Countdown, photoCapture, makeCanvas, drawCover, shareQR, downloadCanvas, confetti, progressWhile, toast, animate } from './common.js';
+import { stylize, emoji, souvenir, aiGenerate, AI_ON } from './ai.js';
 
 const W = 600, H = 450, N = 8, TIME = 90, R = 30;
 const STICKERS = ['🎃', '🦇', '🌕', '🕷️', '👻', '⭐', '🕯️', '🍬', '💀', '🥀'];
@@ -12,19 +12,34 @@ $('#start').onclick = () => { sfx('tap'); showScreen('s-capture'); cam.start(); 
 async function generate() {
   showScreen('s-gen');
   seed = Date.now() % 100000;
-  portrait = stylize(photo, 'vampire', { w: 480, h: 600, seed });
-  const prev = portrait.cloneNode();
-  prev.getContext('2d').drawImage(portrait, 0, 0);
-  $('#genPreview').replaceChildren(prev);
-  const scene = stylize(photo, 'vampire', { w: W, h: H, seed });
-  build(scene);
-  await animate(3200, (p) => {
+  // blurred mock preview while the AI works
+  const mock = stylize(photo, 'vampire', { w: 480, h: 600, seed });
+  mock.style.filter = 'blur(16px) brightness(.5)';
+  $('#genPreview').replaceChildren(mock);
+  const bar = (p) => {
     $('#genBar').style.width = `${p * 100}%`;
     $('#genPct').textContent = `${Math.round(p * 100)}%`;
-    prev.style.filter = `blur(${(1 - p) * 16}px) brightness(${0.5 + p * 0.5})`;
-  });
+    mock.style.filter = `blur(${(1 - p) * 16}px) brightness(${0.5 + p * 0.5})`;
+  };
+  const ai = AI_ON ? await progressWhile(aiGenerate(photo, 'vampire'), bar, 18000) : (await animate(3200, bar), null);
+  if (AI_ON && !ai) toast('AI ไม่ตอบ — ใช้ภาพจำลองแทน');
+  let scene;
+  if (ai) {
+    portrait = ai.canvas;
+    const [c, x] = makeCanvas(W, H);
+    drawCover(x, ai.canvas, 0, 0, W, H, 0.5);
+    scene = c;
+    const show = ai.canvas.cloneNode();
+    show.getContext('2d').drawImage(ai.canvas, 0, 0);
+    $('#genPreview').replaceChildren(show);
+  } else {
+    portrait = mock;
+    portrait.style.filter = '';
+    scene = stylize(photo, 'vampire', { w: W, h: H, seed });
+  }
+  build(scene);
   sfx('good');
-  await sleep(400);
+  await sleep(900);
   play();
 }
 
@@ -179,11 +194,12 @@ $('#toSave').onclick = () => {
   c.getContext('2d').drawImage(portrait, 0, 0);
   c.className = 'shot';
   $('#saveImg').replaceChildren(c);
-  makeQR($('#qr'), pocLink('photohunt'));
+  shareQR($('#qr'), $('#s-save .poc-note'), makeCard(), 'photohunt');
   showScreen('s-save');
 };
-$('#dl').onclick = () => downloadCanvas(
-  souvenir({ image: portrait, title: 'PHOTOHUNT', lines: [`คะแนน ${score}`, `หาจุดต่างเจอ ${found}/${N} จุด`], c1: '#3a4a8a', c2: '#0b1030', imgH: 560 }),
-  'photohunt.png',
-);
+const makeCard = () => souvenir({
+  image: portrait, title: 'PHOTOHUNT', lines: [`คะแนน ${score}`, `หาจุดต่างเจอ ${found}/${N} จุด`],
+  c1: '#3a4a8a', c2: '#0b1030', imgH: Math.min(560, Math.round((520 * portrait.height) / portrait.width)),
+});
+$('#dl').onclick = () => downloadCanvas(makeCard(), 'photohunt.png');
 $('#home').onclick = () => showScreen('s-home');

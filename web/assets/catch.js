@@ -1,5 +1,5 @@
-import { $, showScreen, sleep, rand, sfx, photoCapture, makeCanvas, roundRect, makeQR, pocLink, downloadCanvas, downloadBlob, animate, confetti, drawCover } from './common.js';
-import { cartoonHead, emoji } from './ai.js';
+import { $, showScreen, sleep, rand, sfx, photoCapture, makeCanvas, roundRect, shareQR, downloadCanvas, downloadBlob, animate, confetti, drawCover, progressWhile, toast } from './common.js';
+import { cartoonHead, emoji, aiGenerate, AI_ON } from './ai.js';
 
 const GW = 540, GH = 960, DURATION = 45, HEARTS = 3;
 const GROUND = GH - 70;            // feet line of the character
@@ -30,11 +30,17 @@ async function generate() {
   $('#genPhoto').replaceChildren(thumb);
   head = cartoonHead(photo, 240);
   const gc = $('#genChar'), gx = gc.getContext('2d');
-  await animate(2600, (p) => {
+  const bar = (p) => {
     $('#genBar').style.width = `${p * 100}%`;
     $('#genPct').textContent = `${Math.round(p * 100)}%`;
-    drawPreview(gx, gc.width, gc.height, p);
-  });
+    drawPreview(gx, gc.width, gc.height, Math.min(p, 0.6));
+  };
+  if (AI_ON) {
+    const ai = await progressWhile(aiGenerate(photo, 'chibi'), bar, 15000);
+    if (ai) head = cartoonHead(ai.canvas, 240, { raw: true });
+    else toast('AI ไม่ตอบ — ใช้ตัวละครจำลองแทน');
+  } else await animate(2600, bar);
+  await animate(400, (p) => drawPreview(gx, gc.width, gc.height, 0.6 + p * 0.4));
   sfx('good');
   $('#go').disabled = false;
 }
@@ -341,7 +347,7 @@ function startRec() {
   if (!cv.captureStream || !window.MediaRecorder) return;
   const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find((t) => MediaRecorder.isTypeSupported(t));
   try {
-    rec = new MediaRecorder(cv.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 2_500_000 } : undefined);
+    rec = new MediaRecorder(cv.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 1_500_000 } : undefined);
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.start(250);
   } catch {
@@ -388,7 +394,8 @@ $('#toShare').onclick = () => {
   posterCanvas = makePoster();
   posterCanvas.className = 'shot';
   $('#poster').replaceChildren(posterCanvas);
-  makeQR($('#qr'), pocLink('catch-video'));
+  shareQR($('#qr'), $('#s-share .poc-note'), videoBlob || posterCanvas, 'catch');
+  $('#qrLabel').innerHTML = videoBlob ? 'สแกนเพื่อรับวิดีโอ' : 'สแกนเพื่อรับภาพ';
   $('#dlVideo').disabled = !videoBlob;
   showScreen('s-share');
 };
