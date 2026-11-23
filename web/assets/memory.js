@@ -1,8 +1,8 @@
 import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, shareQR, downloadCanvas, animate, confetti, progressWhile, toast } from './common.js';
 import { THEMES, stylize, souvenir, aiGenerate, AI_ON } from './ai.js';
 
-const PAIRS = 10, TIME = 120;
-const AI_IMAGES = 5; // real AI images per player (all generated at once); each is used for 2 of the 10 pairs with a different badge/frame
+const PAIRS = 5, TIME = 60;
+const AI_IMAGES = PAIRS; // one AI image per pair, all generated at once (5 pairs = 10 cards)
 const FRAMES = ['#ffd84a', '#ff4d6d', '#4dd2ff', '#7dff7a', '#ffffff', '#b46bff', '#ff9d00', '#00e0b0', '#ff66cc', '#c8ff00'];
 let photo = null, theme = 'halloween', seed = 1, images = [], game = null, fav = 0;
 
