@@ -1,4 +1,4 @@
-import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, shareQR, downloadCanvas, animate, confetti, progressWhile, toast } from './common.js';
+import { $, $$, showScreen, sleep, shuffle, fmtTime, sfx, Countdown, photoCapture, shareQR, downloadCanvas, animate, confetti, progressWhile, toast, makeCanvas, drawCover } from './common.js';
 import { THEMES, stylize, souvenir, aiGenerate, AI_ON } from './ai.js';
 
 const PAIRS = 5, TIME = 60;
@@ -66,8 +66,16 @@ async function generate() {
   $('#genMsg').textContent = `กำลังจัดการ์ด ${PAIRS} คู่...`;
   for (let i = 0; i < PAIRS; i++) {
     if (!ai.length) await animate(420, (p) => bar((i + p) / PAIRS));
-    const src = ai.length ? ai[i % ai.length].canvas : photo;
-    const c = stylize(src, theme, { w: 360, h: 360, variant: i, seed, frame: FRAMES[i], raw: !!ai.length });
+    let c;
+    if (ai.length >= PAIRS) {
+      // every pair has its own AI picture, so use it as is (no badge / coloured frame)
+      [c] = makeCanvas(480, 480);
+      drawCover(c.getContext('2d'), ai[i].canvas, 0, 0, 480, 480, 0.45);
+    } else {
+      // mock fallback or some AI calls failed: pictures repeat, so a badge + frame tells pairs apart
+      const src = ai.length ? ai[i % ai.length].canvas : photo;
+      c = stylize(src, theme, { w: 360, h: 360, variant: i, seed, frame: FRAMES[i], raw: !!ai.length });
+    }
     images.push({ canvas: c, url: c.toDataURL('image/jpeg', 0.85) });
     grid.children[i].innerHTML = `<img src="${images[i].url}" alt="">`;
     grid.children[i].classList.add('done');
