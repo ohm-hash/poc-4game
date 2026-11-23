@@ -186,6 +186,67 @@ function badgeAndFrame(ctx, t, variant, w, h, s, frame, c) {
   return c;
 }
 
+/**
+ * Cut a character out of a plain light background (the catch_* AI styles ask for pure white).
+ * Flood-fills from the image border so white parts inside the character are kept,
+ * then crops to the character. Returns a transparent canvas.
+ */
+export function cutout(src, maxH = 640) {
+  const s = Math.min(1, maxH / src.height);
+  const W = Math.round(src.width * s), H = Math.round(src.height * s);
+  const [c, x] = makeCanvas(W, H);
+  x.drawImage(src, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H), a = d.data;
+  // background colour: per channel, the 3rd-lightest of the 4 corners (ignores one odd corner)
+  const corners = [0, W - 1, (H - 1) * W, H * W - 1].map((p) => [a[p * 4], a[p * 4 + 1], a[p * 4 + 2]]);
+  const bg = [0, 1, 2].map((k) => corners.map((v) => v[k]).sort((p, q) => p - q)[2]);
+  const dist = (p) => Math.max(Math.abs(a[p * 4] - bg[0]), Math.abs(a[p * 4 + 1] - bg[1]), Math.abs(a[p * 4 + 2] - bg[2]));
+  const T = 34, seen = new Uint8Array(W * H), q = new Int32Array(W * H);
+  let qh = 0, qt = 0;
+  const push = (p) => { if (!seen[p] && dist(p) < T) { seen[p] = 1; q[qt++] = p; } };
+  for (let X = 0; X < W; X++) { push(X); push((H - 1) * W + X); }
+  for (let Y = 0; Y < H; Y++) { push(Y * W); push(Y * W + W - 1); }
+  while (qh < qt) {
+    const p = q[qh++], X = p % W, Y = (p / W) | 0;
+    if (X > 0) push(p - 1);
+    if (X < W - 1) push(p + 1);
+    if (Y > 0) push(p - W);
+    if (Y < H - 1) push(p + W);
+  }
+  // 2nd pass: background trapped inside the figure (e.g. between the raised arms) — enclosed regions
+  // that are almost exactly the background colour and not tiny. Eyes/teeth are too small to qualify.
+  const T2 = 14, minArea = W * H * 0.002, mark = new Uint8Array(W * H);
+  for (let p0 = 0; p0 < W * H; p0++) {
+    if (seen[p0] || mark[p0] || dist(p0) >= T2) continue;
+    qh = qt = 0;
+    q[qt++] = p0;
+    mark[p0] = 1;
+    while (qh < qt) {
+      const p = q[qh++], X = p % W, Y = (p / W) | 0;
+      for (const n of [X > 0 ? p - 1 : -1, X < W - 1 ? p + 1 : -1, Y > 0 ? p - W : -1, Y < H - 1 ? p + W : -1]) {
+        if (n >= 0 && !seen[n] && !mark[n] && dist(n) < T2) { mark[n] = 1; q[qt++] = n; }
+      }
+    }
+    if (qt >= minArea) for (let i = 0; i < qt; i++) seen[q[i]] = 1;
+  }
+  let minX = W, minY = H, maxX = -1, maxY = -1;
+  for (let p = 0; p < W * H; p++) {
+    if (seen[p]) { a[p * 4 + 3] = 0; continue; }
+    const X = p % W, Y = (p / W) | 0;
+    const edge = (X > 0 && seen[p - 1]) || (X < W - 1 && seen[p + 1]) || (Y > 0 && seen[p - W]) || (Y < H - 1 && seen[p + W]);
+    if (edge && dist(p) < T * 2) a[p * 4 + 3] = 140; // soften the light halo on the outline
+    if (X < minX) minX = X;
+    if (X > maxX) maxX = X;
+    if (Y < minY) minY = Y;
+    if (Y > maxY) maxY = Y;
+  }
+  x.putImageData(d, 0, 0);
+  if (maxX <= minX || maxY <= minY) return c;
+  const [o, ox] = makeCanvas(maxX - minX + 1, maxY - minY + 1);
+  ox.drawImage(c, -minX, -minY);
+  return o;
+}
+
 /** Chibi head for the catch game: circular, punchy colours, outline. */
 export function cartoonHead(photo, size = 320, { raw = false } = {}) {
   const [c, ctx] = makeCanvas(size, size);

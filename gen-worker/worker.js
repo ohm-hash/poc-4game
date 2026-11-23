@@ -41,6 +41,11 @@ const STYLES = {
   xmastown: { ratio: '4:3', prompt: 'Stylized 3D animated-movie character in a cozy red winter outfit and Santa hat, standing in a snowy Christmas town square at night, with MANY small detailed objects around: wrapped gifts, toy soldiers, candy canes, snowmen, ornaments, lanterns, reindeer, gingerbread cookies, a decorated tree. Wide landscape composition, character on the right half.' },
   pirate: { ratio: '4:3', prompt: 'Stylized 3D animated-movie friendly pirate captain with a tricorn hat and red coat, standing on a sunny tropical treasure island beach, with MANY small detailed objects around: treasure chests, gold coins, a parrot, palm trees, barrels, a pirate ship, seashells, a map, crabs, a telescope. Wide landscape composition, character on the right half.' },
   candy: { ratio: '4:3', prompt: 'Stylized 3D animated-movie character in a colorful candy-themed outfit, standing in a magical candy land, with MANY small detailed objects around: lollipops, cupcakes, donuts, gummy bears, ice-cream cones, macarons, candy houses, chocolate rivers, sprinkles. Wide landscape composition, character on the right half.' },
+  // Catch & Win: full-body character, cut out in the browser (white background -> transparent)
+  catch_farm: { ratio: '3:4', catch: 'a wide woven straw basket', outfit: 'farmer outfit: straw hat, denim overalls, checked shirt and boots' },
+  catch_xmas: { ratio: '3:4', catch: 'a big open red Santa sack', outfit: 'cozy red Christmas outfit with a Santa hat and a striped scarf' },
+  catch_space: { ratio: '3:4', catch: 'a wide glowing open space basket', outfit: 'cute white astronaut suit, no helmet so the face is visible' },
+  catch_sea: { ratio: '3:4', catch: 'a big open seashell-shaped basket', outfit: 'colorful beach outfit with a snorkel mask pushed up on the forehead' },
   chibi: { ratio: '1:1', prompt: 'Cute chibi 2D cartoon sticker of the person: big head, head and shoulders only, big sparkling eyes, happy open smile, wearing an orange hoodie, thick clean outlines, flat cel shading, plain light cream background, centered face.' },
   fortune: { ratio: '4:3', prompt: 'Funny romantic vacation selfie on a sunny Greek-island seaside with white houses and blue sea. Next to the person is their mysterious future partner whose face is completely hidden behind a big pink heart-shaped balloon. Floating hearts, playful comedic mood, photo-realistic but slightly stylized.' },
 };
@@ -121,9 +126,15 @@ export default {
 
     const s = STYLES[style];
     const pose = ['halloween', 'santa', 'hero', 'space'].includes(style) ? ` The character is ${POSES[variant]}.` : '';
+    const prompt = s.catch
+      ? 'Full-body cute chibi 3D cartoon character of the person in the photo (big head, small body), keep their face, skin tone and hairstyle recognizable. ' +
+        `Wearing a ${s.outfit}. Standing and facing the camera, the whole body visible from head to shoes, ` +
+        `raising ${s.catch} high above their head with both hands, ready to catch falling things, happy excited expression. ` +
+        'Isolated on a plain pure white background: no ground, no shadow, no scenery, no other objects, no border, no text, no logos, no flags or patches.'
+      : BASE + s.prompt + pose;
     const reqBase = {
       model: env.MODEL,
-      prompt: BASE + s.prompt + pose,
+      prompt,
       input_references: [{ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + photo } }],
       n: 1,
     };

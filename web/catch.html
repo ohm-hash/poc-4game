@@ -12,9 +12,10 @@
   .logo { font-size: 3.6em; font-weight: 800; line-height: .95; text-align: center; transform: rotate(-4deg); }
   .logo .l1 { color: #fff; text-shadow: 0 .06em 0 #1e3a9a, 0 .1em 0 #1e3a9a, 0 .18em .3em #0007; display: block; }
   .ribbon { background: linear-gradient(180deg, #3f78ff, #1e3fb8); padding: .15em 1.2em; border-radius: .3em; font-weight: 800; font-style: italic; font-size: 1.3em; transform: rotate(-4deg); box-shadow: 0 .3em .6em #0006; border: 2px solid #9fc0ff; }
-  .chars { position: relative; width: 13em; animation: float 2.4s ease-in-out infinite; }
-  .chars img { width: 100%; border-radius: 50%; border: .3em solid #fff; box-shadow: 0 .5em 1.2em #0006; display: block; }
-  .chars span { position: absolute; right: -.4em; bottom: -.3em; font-size: 4em; }
+  .chars { width: 12em; aspect-ratio: 3 / 4; border-radius: 1.2em; overflow: hidden; border: .25em solid #fff; box-shadow: 0 .5em 1.2em #0006; animation: float 2.4s ease-in-out infinite; background: #fff3dc; }
+  .chars canvas { width: 100%; height: 100%; display: block; }
+  .theme-card canvas { width: 100%; display: block; aspect-ratio: 3 / 4; }
+  #scoreChar canvas { width: 100%; display: block; border-radius: 1em; border: .2em solid #fff; }
   @keyframes float { 50% { transform: translateY(-.08em); } }
   #s-play { padding: 0; }
   .stage:has(#s-play.active) .home-btn { display: none; }
@@ -27,7 +28,7 @@
   .score-card { background: linear-gradient(180deg, #fff8e6, #ffe2a8); color: var(--o4); border-radius: 1.2em; padding: .5em 1.5em; text-align: center; border: .25em solid var(--gold); box-shadow: 0 .5em 1.2em #0006; }
   .score-card small { font-weight: 600; font-size: 1.1em; }
   .score-card b { display: block; font-size: 3.6em; line-height: 1; }
-  #scoreChar { width: 70%; }
+  #scoreChar { width: 50%; }
   video.shot { background: #000; max-height: 58vh; object-fit: contain; }
   .stats { display: flex; gap: .5em; width: 100%; }
   .stats div { flex: 1; background: #0004; border-radius: .7em; padding: .2em; text-align: center; font-size: .85em; }
@@ -42,8 +43,8 @@
     <div class="spacer"></div>
     <div class="logo"><span class="l1">รับของ</span><span class="gold-text">ไข่ตก!</span></div>
     <div class="ribbon">CATCH &amp; WIN</div>
-    <div class="chars"><img src="assets/themes/chibi.jpg" alt="ตัวอย่างตัวละคร"><span>🧺</span></div>
-    <p class="sub">AI เปลี่ยนรูปคุณเป็นตัวละครน่ารัก<br>แล้วรับไข่ รับของขวัญ หลบระเบิด ให้ได้คะแนนมากที่สุด!</p>
+    <div class="chars" id="heroSample"></div>
+    <p class="sub">AI เปลี่ยนคุณเป็นตัวละครทั้งตัว เลือกได้ 4 ธีม<br>ฟาร์ม • คริสต์มาส • อวกาศ • ใต้ทะเล — รับของให้ได้มากที่สุด!</p>
     <div class="spacer"></div>
     <button class="btn blue wide" id="toCam">📷 ถ่ายรูป</button>
     <button class="btn yellow wide" id="startSample">START GAME</button>
@@ -56,8 +57,16 @@
     <div class="spacer"></div>
   </section>
 
+  <section class="screen" id="s-theme">
+    <div class="step"><b>2</b>เลือกธีม</div>
+    <p class="sub">ชุดตัวละคร ฉาก และของที่ตกลงมาจะเปลี่ยนตามธีม</p>
+    <div class="theme-grid" id="themeGrid"></div>
+    <div class="spacer"></div>
+    <div class="row"><button class="btn ghost sm" id="retake">📷 ถ่ายใหม่</button><button class="btn" id="toGen">ถัดไป ➜</button></div>
+  </section>
+
   <section class="screen" id="s-gen">
-    <div class="step"><b>1</b>AI เปลี่ยนรูปคุณให้เป็นตัวละครน่ารัก</div>
+    <div class="step"><b>3</b>AI เปลี่ยนรูปคุณให้เป็นตัวละครทั้งตัว</div>
     <div class="gen-row">
       <div id="genPhoto"></div>
       <div class="arrow">⬇️</div>
@@ -73,22 +82,22 @@
   </section>
 
   <section class="screen" id="s-score">
-    <div class="step"><b>3</b>จบเกม! สรุปคะแนน</div>
+    <div class="step"><b>4</b>จบเกม! สรุปคะแนน</div>
     <div style="font-size:3em">👑</div>
     <div class="score-card"><small>คะแนนรวม</small><b id="sScore">0</b></div>
     <div class="stats">
-      <div>🥚 ไข่<b id="stEgg">0</b></div>
-      <div>🎁 ของขวัญ<b id="stGift">0</b></div>
+      <div><span id="lblA">🥚</span> ของปกติ<b id="stA">0</b></div>
+      <div><span id="lblB">🎁</span> ของโบนัส<b id="stB">0</b></div>
       <div>🔥 คอมโบสูงสุด<b id="stCombo">0</b></div>
     </div>
-    <canvas id="scoreChar" width="300" height="380"></canvas>
+    <div id="scoreChar"></div>
     <p class="sub">คุณทำได้ยอดเยี่ยม!</p>
     <div class="spacer"></div>
     <button class="btn wide" id="toVideo">🎬 ดูวิดีโอของคุณ</button>
   </section>
 
   <section class="screen" id="s-video">
-    <div class="step"><b>4</b>บันทึกวิดีโอ</div>
+    <div class="step"><b>5</b>บันทึกวิดีโอ</div>
     <p class="sub">บันทึกช่วงเวลาความสนุกของคุณ</p>
     <video class="shot" id="replay" playsinline controls loop muted></video>
     <p class="sub" id="noVideo" hidden>เบราว์เซอร์นี้บันทึกวิดีโอไม่ได้ — ข้ามไปรับภาพที่ระลึกแทน</p>
@@ -97,7 +106,7 @@
   </section>
 
   <section class="screen" id="s-share">
-    <div class="step"><b>5</b>บันทึก / แชร์</div>
+    <div class="step"><b>6</b>บันทึก / แชร์</div>
     <div id="poster" style="width:62%"></div>
     <div class="row">
       <div class="qr" id="qr"></div>

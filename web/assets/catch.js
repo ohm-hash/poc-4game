@@ -1,25 +1,115 @@
-import { $, showScreen, sleep, rand, sfx, photoCapture, makeCanvas, roundRect, shareQR, downloadCanvas, downloadBlob, animate, confetti, drawCover, progressWhile, toast } from './common.js';
-import { cartoonHead, emoji, aiGenerate, AI_ON } from './ai.js';
+import { $, $$, showScreen, sleep, rand, sfx, photoCapture, makeCanvas, roundRect, shareQR, downloadCanvas, downloadBlob, animate, confetti, drawCover, progressWhile, toast, loadImage } from './common.js';
+import { cartoonHead, emoji, aiGenerate, AI_ON, cutout } from './ai.js';
 
 const GW = 540, GH = 960, DURATION = 45, HEARTS = 3;
-const GROUND = GH - 70;            // feet line of the character
-const BASKET_Y = GROUND - 132;     // top rim of the basket
-const ITEMS = {
-  egg: { pts: 10, r: 26, w: 52 },
-  gold: { pts: 50, r: 28, w: 8 },
-  gift: { pts: 30, r: 30, w: 18 },
-  bomb: { pts: 0, r: 30, w: 22 },
+
+// Each theme changes the AI outfit (worker style catch_<key>), the background and the falling items.
+// items[0] = common, items[1] = rare golden, items[2] = bonus. `draw` items are painted, others are emoji.
+const THEMES = {
+  farm: {
+    label: 'FARM', hazard: '💣',
+    items: [{ draw: 'egg', pts: 10, r: 26, w: 52 }, { draw: 'gold', pts: 50, r: 28, w: 8 }, { e: '🎁', pts: 30, r: 30, w: 18 }],
+    icons: ['🥚', '🎁'],
+  },
+  xmas: {
+    label: 'CHRISTMAS', hazard: '💣',
+    items: [{ e: '🎁', pts: 10, r: 28, w: 52 }, { e: '⭐', pts: 50, r: 28, w: 8 }, { e: '🍪', pts: 30, r: 28, w: 18 }],
+    icons: ['🎁', '🍪'],
+  },
+  space: {
+    label: 'SPACE', hazard: '☄️',
+    items: [{ e: '⭐', pts: 10, r: 26, w: 52 }, { e: '💎', pts: 50, r: 28, w: 8 }, { e: '🪐', pts: 30, r: 30, w: 18 }],
+    icons: ['⭐', '🪐'],
+  },
+  sea: {
+    label: 'UNDER THE SEA', hazard: '🪼',
+    items: [{ e: '🐚', pts: 10, r: 26, w: 52 }, { e: '💎', pts: 50, r: 28, w: 8 }, { e: '🐠', pts: 30, r: 30, w: 18 }],
+    icons: ['🐚', '🐠'],
+  },
+};
+const HAZARD = { r: 30, w: 22 };
+
+let theme = 'farm', photo, hero, bg, S, rec = null, chunks = [], videoBlob = null, videoURL = null, posterCanvas = null;
+const cv = $('#game'), ctx = cv.getContext('2d');
+const bgCache = {}, sampleCache = {};
+
+// ---------------- assets ----------------
+async function themeBg(key) {
+  if (bgCache[key]) return bgCache[key];
+  const [c, x] = makeCanvas(GW, GH);
+  try {
+    drawCover(x, await loadImage(`assets/themes/catch-bg-${key}.jpg`), 0, 0, GW, GH, 0.5);
+  } catch {
+    x.drawImage(drawnFarm(), 0, 0);
+  }
+  return (bgCache[key] = c);
+}
+async function sampleSprite(key) {
+  if (!sampleCache[key]) sampleCache[key] = cutout(await loadImage(`assets/themes/catch-${key}.jpg`), 520);
+  return sampleCache[key];
+}
+
+// The player: a full-body AI sprite (preferred) or the drawn fallback character with the AI/photo head.
+function spriteHero(sprite) {
+  const h = 340, w = (sprite.width * h) / sprite.height;
+  return {
+    ground: GH - 36, h,
+    draw: (x, px, gy, bob) => x.drawImage(sprite, px - w / 2, gy - h + bob, w, h),
+    zone: (gy) => [gy - h, gy - h + h * 0.24], // the basket is held above the head
+    halfW: Math.min(w * 0.45, 95),
+    sprite,
+  };
+}
+function drawnHero(head) {
+  return {
+    ground: GH - 70, h: 290,
+    draw: (x, px, gy, bob) => drawCharacter(x, head, px, gy, bob),
+    zone: (gy) => [gy - 132, gy - 108],
+    halfW: 70,
+  };
+}
+
+/** background + character, for the theme cards, the AI screen, the score screen and the poster */
+function scene(w, h, bgCanvas, draw, charH) {
+  const [c, x] = makeCanvas(w, h);
+  drawCover(x, bgCanvas, 0, 0, w, h, 1);
+  draw(x, w / 2, h - h * 0.04, charH);
+  return c;
+}
+const drawSprite = (sprite) => (x, cx, gy, ch) => {
+  const cw = (sprite.width * ch) / sprite.height;
+  x.drawImage(sprite, cx - cw / 2, gy - ch, cw, ch);
 };
 
-let photo, head, S, rec = null, chunks = [], videoBlob = null, videoURL = null, posterCanvas = null;
-const cv = $('#game'), ctx = cv.getContext('2d');
-const bg = makeBackground();
-
 // ---------------- flow ----------------
-const cam = photoCapture($('#cap'), { hint: 'หน้าตรง ยิ้มกว้างๆ 😄', onPhoto: (c) => { photo = c; generate(); } });
+const cam = photoCapture($('#cap'), { hint: 'หน้าตรง ยิ้มกว้างๆ 😄', onPhoto: (c) => { photo = c; buildThemes(); showScreen('s-theme'); } });
 const toCam = () => { sfx('tap'); showScreen('s-capture'); cam.start(); };
 $('#toCam').onclick = toCam;
 $('#startSample').onclick = toCam;
+
+(async () => { // start screen: sample character on the farm
+  const c = scene(360, 480, await themeBg('farm'), drawSprite(await sampleSprite('farm')), 400);
+  $('#heroSample').replaceChildren(c);
+})();
+
+async function buildThemes() {
+  const grid = $('#themeGrid');
+  grid.innerHTML = '';
+  for (const key of Object.keys(THEMES)) {
+    const b = document.createElement('button');
+    b.className = 'theme-card' + (key === theme ? ' sel' : '');
+    b.innerHTML = `<span>${THEMES[key].label}</span>`;
+    b.onclick = () => {
+      theme = key;
+      $$('.theme-card').forEach((x) => x.classList.toggle('sel', x === b));
+      sfx('tap');
+    };
+    grid.appendChild(b);
+    themeBg(key).then(async (bgc) => b.prepend(scene(300, 400, bgc, drawSprite(await sampleSprite(key)), 330)));
+  }
+}
+$('#retake').onclick = () => { showScreen('s-capture'); cam.start(); };
+$('#toGen').onclick = () => { sfx('tap'); generate(); };
 
 async function generate() {
   showScreen('s-gen');
@@ -28,124 +118,85 @@ async function generate() {
   drawCover(thumb.getContext('2d'), photo, 0, 0, 300, 300, 0.42);
   thumb.style.width = '100%';
   $('#genPhoto').replaceChildren(thumb);
-  head = cartoonHead(photo, 240);
+  bg = await themeBg(theme);
   const gc = $('#genChar'), gx = gc.getContext('2d');
-  const bar = (p) => {
+  hero = drawnHero(cartoonHead(photo, 240));
+  const preview = (p) => {
     $('#genBar').style.width = `${p * 100}%`;
     $('#genPct').textContent = `${Math.round(p * 100)}%`;
-    drawPreview(gx, gc.width, gc.height, Math.min(p, 0.6));
+    gx.clearRect(0, 0, gc.width, gc.height);
+    gx.globalAlpha = 0.35 + p * 0.3;
+    drawCover(gx, bg, 0, 0, gc.width, gc.height, 1);
+    gx.globalAlpha = 1;
   };
+  let sprite = null;
   if (AI_ON) {
-    const ai = await progressWhile(aiGenerate(photo, 'chibi'), bar, 15000);
-    if (ai) head = cartoonHead(ai.canvas, 240, { raw: true });
+    const ai = await progressWhile(aiGenerate(photo, `catch_${theme}`), preview, 18000);
+    if (ai) sprite = cutout(ai.canvas, 640);
     else toast('AI ไม่ตอบ — ใช้ตัวละครจำลองแทน');
-  } else await animate(2600, bar);
-  await animate(400, (p) => drawPreview(gx, gc.width, gc.height, 0.6 + p * 0.4));
+  } else await animate(2600, preview);
+  hero = sprite ? spriteHero(sprite) : hero;
+  const art = heroScene(gc.width, gc.height);
+  await animate(500, (p) => {
+    gx.clearRect(0, 0, gc.width, gc.height);
+    gx.globalAlpha = p;
+    gx.drawImage(art, 0, 0);
+    gx.globalAlpha = 1;
+  });
   sfx('good');
   $('#go').disabled = false;
 }
 
-function drawPreview(x, w, h, p = 1) {
-  x.clearRect(0, 0, w, h);
-  x.fillStyle = '#fff3dc';
-  x.fillRect(0, 0, w, h);
-  x.save();
-  x.globalAlpha = p;
-  x.filter = `blur(${(1 - p) * 10}px)`;
-  x.translate(w / 2, h - 20);
-  x.scale(1.25, 1.25);
-  drawCharacter(x, 0, 0, 0);
-  x.restore();
-  if (p >= 1) for (let i = 0; i < 5; i++) emoji(x, '✨', 30 + ((i * 67) % (w - 60)), 30 + ((i * 97) % 140), 22);
+/** the current hero on the current background */
+function heroScene(w, h) {
+  if (hero.sprite) return scene(w, h, bg, drawSprite(hero.sprite), h * 0.86);
+  return scene(w, h, bg, (x, cx, gy) => {
+    x.save();
+    x.translate(cx, gy);
+    x.scale(1.25, 1.25);
+    hero.draw(x, 0, 0, 0);
+    x.restore();
+  }, 0);
 }
 
 $('#go').onclick = () => { sfx('tap'); startGame(); };
 
 // ---------------- drawing ----------------
-function makeBackground() {
+function drawnFarm() { // fallback background if the image cannot load
   const [c, x] = makeCanvas(GW, GH);
   const sky = x.createLinearGradient(0, 0, 0, GH);
   sky.addColorStop(0, '#47b8ff');
   sky.addColorStop(0.6, '#bfe9ff');
   x.fillStyle = sky;
   x.fillRect(0, 0, GW, GH);
-  x.fillStyle = '#fff6b0';
-  x.beginPath(); x.arc(440, 200, 50, 0, 7); x.fill();
-  x.fillStyle = '#ffffffdd';
-  for (const [cx, cy, s] of [[90, 260, 1], [330, 330, 0.8], [480, 420, 0.6]]) {
-    x.beginPath();
-    x.arc(cx, cy, 30 * s, 0, 7); x.arc(cx + 34 * s, cy - 14 * s, 38 * s, 0, 7); x.arc(cx + 72 * s, cy, 30 * s, 0, 7);
-    x.fill();
-  }
-  // hills
-  x.fillStyle = '#7ccf4f';
-  x.beginPath(); x.ellipse(120, GH - 260, 260, 120, 0, Math.PI, 0); x.fill();
-  x.fillStyle = '#5fb83a';
-  x.beginPath(); x.ellipse(460, GH - 250, 280, 140, 0, Math.PI, 0); x.fill();
-  // barn
-  x.fillStyle = '#d6342c'; x.fillRect(40, GH - 380, 110, 90);
-  x.fillStyle = '#8f1f1a';
-  x.beginPath(); x.moveTo(30, GH - 380); x.lineTo(95, GH - 430); x.lineTo(160, GH - 380); x.fill();
-  x.strokeStyle = '#fff'; x.lineWidth = 5; x.strokeRect(75, GH - 350, 40, 60);
-  x.beginPath(); x.moveTo(75, GH - 350); x.lineTo(115, GH - 290); x.moveTo(115, GH - 350); x.lineTo(75, GH - 290); x.stroke();
-  // trees
-  for (const tx of [210, 420]) {
-    x.fillStyle = '#7a4a22'; x.fillRect(tx - 8, GH - 360, 16, 60);
-    x.fillStyle = '#3f9e2e'; x.beginPath(); x.arc(tx, GH - 375, 40, 0, 7); x.fill();
-  }
-  // grass
   x.fillStyle = '#4fae2f';
   x.fillRect(0, GH - 300, GW, 300);
-  x.fillStyle = '#5cc23a';
-  for (let i = 0; i < 70; i++) {
-    const gx = (i * 53) % GW, gy = GH - 290 + ((i * 37) % 280);
-    x.beginPath(); x.moveTo(gx, gy); x.lineTo(gx + 5, gy - 14); x.lineTo(gx + 10, gy); x.fill();
-  }
-  // fence
-  x.fillStyle = '#f1e3c4';
-  x.fillRect(0, GH - 300, GW, 10);
-  x.fillRect(0, GH - 276, GW, 10);
-  for (let fx = 10; fx < GW; fx += 46) x.fillRect(fx, GH - 320, 12, 60);
   return c;
 }
 
-function drawCharacter(x, px, gy, bob) {
+// fallback character (AI failed): drawn body + round head from the photo
+function drawCharacter(x, head, px, gy, bob) {
   const y = gy + bob;
   x.save();
   x.lineJoin = 'round';
-  // legs + shoes
   x.fillStyle = '#2d4a8a';
   roundRect(x, px - 30, y - 72, 24, 62, 8); x.fill();
   roundRect(x, px + 6, y - 72, 24, 62, 8); x.fill();
   x.fillStyle = '#fff';
   x.beginPath(); x.ellipse(px - 20, y - 8, 20, 10, 0, 0, 7); x.ellipse(px + 20, y - 8, 20, 10, 0, 0, 7); x.fill();
-  // hoodie
   x.fillStyle = '#f5a623';
   x.strokeStyle = '#b86f00';
   x.lineWidth = 4;
   roundRect(x, px - 48, y - 160, 96, 96, 28); x.fill(); x.stroke();
-  x.strokeStyle = '#fff';
-  x.lineWidth = 3;
-  x.beginPath(); x.moveTo(px - 10, y - 152); x.lineTo(px - 12, y - 125); x.moveTo(px + 10, y - 152); x.lineTo(px + 12, y - 125); x.stroke();
-  // head
   x.drawImage(head, px - 64, y - 290, 128, 128);
-  // basket
   const bt = y - 132;
   x.fillStyle = '#c98a3c';
   x.strokeStyle = '#7a4a14';
-  x.lineWidth = 4;
   x.beginPath();
   x.moveTo(px - 70, bt); x.lineTo(px + 70, bt); x.lineTo(px + 52, bt + 56); x.lineTo(px - 52, bt + 56); x.closePath();
   x.fill(); x.stroke();
-  x.strokeStyle = '#a66a25';
-  x.lineWidth = 3;
-  for (let i = 1; i < 4; i++) { x.beginPath(); x.moveTo(px - 70 + i * 4.5, bt + i * 14); x.lineTo(px + 70 - i * 4.5, bt + i * 14); x.stroke(); }
-  for (let i = -3; i <= 3; i++) { x.beginPath(); x.moveTo(px + i * 19, bt); x.lineTo(px + i * 14, bt + 56); x.stroke(); }
   x.fillStyle = '#8a5418';
   x.beginPath(); x.ellipse(px, bt, 70, 13, 0, 0, 7); x.fill();
-  x.fillStyle = '#5c3510';
-  x.beginPath(); x.ellipse(px, bt + 2, 58, 8, 0, 0, 7); x.fill();
-  // hands
   x.fillStyle = '#f0b98f';
   x.beginPath(); x.arc(px - 70, bt + 10, 12, 0, 7); x.arc(px + 70, bt + 10, 12, 0, 7); x.fill();
   x.restore();
@@ -155,17 +206,22 @@ function drawItem(x, it) {
   x.save();
   x.translate(it.x, it.y);
   x.rotate(it.rot);
-  if (it.type === 'egg' || it.type === 'gold') {
+  if (it.def.draw) {
+    const gold = it.def.draw === 'gold';
     const g = x.createRadialGradient(-8, -10, 4, 0, 0, it.r * 1.1);
-    if (it.type === 'egg') { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e9dcc0'); }
-    else { g.addColorStop(0, '#fff7b0'); g.addColorStop(1, '#ffae00'); }
+    g.addColorStop(0, gold ? '#fff7b0' : '#ffffff');
+    g.addColorStop(1, gold ? '#ffae00' : '#e9dcc0');
     x.fillStyle = g;
-    x.strokeStyle = it.type === 'egg' ? '#c8b48a' : '#c77d00';
+    x.strokeStyle = gold ? '#c77d00' : '#c8b48a';
     x.lineWidth = 3;
     x.beginPath(); x.ellipse(0, 0, it.r * 0.78, it.r, 0, 0, 7); x.fill(); x.stroke();
-    if (it.type === 'gold') emoji(x, '✨', 16, -18, 20);
+    if (gold) emoji(x, '✨', 16, -18, 20);
   } else {
-    emoji(x, it.type === 'gift' ? '🎁' : '💣', 0, 0, it.r * 2);
+    if (it.kind === 1) { // rare item: golden glow
+      x.shadowColor = '#ffd84a';
+      x.shadowBlur = 24;
+    }
+    emoji(x, it.def.e, 0, 0, it.r * 2);
   }
   x.restore();
 }
@@ -206,8 +262,8 @@ function render() {
   ctx.save();
   if (S.shake > 0) ctx.translate(rand(-8, 8) * S.shake, rand(-8, 8) * S.shake);
   ctx.drawImage(bg, 0, 0);
-  for (const it of S.items) drawItem(ctx, it);
-  drawCharacter(ctx, S.px, GROUND, Math.sin(S.t * 12) * (Math.abs(S.vx) > 30 ? 3 : 1));
+  hero.draw(ctx, S.px, hero.ground, Math.sin(S.t * 12) * (Math.abs(S.vx) > 30 ? 4 : 1.5));
+  for (const it of S.items) drawItem(ctx, it); // items in front, so they visibly drop into the basket
   for (const f of S.floats) {
     ctx.globalAlpha = Math.max(0, f.life);
     ctx.fillStyle = f.color;
@@ -236,20 +292,22 @@ function render() {
     if (S.phase === 'count') {
       ctx.font = '600 30px Kanit, sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText('ลากนิ้วซ้าย-ขวา เพื่อรับของ • หลบ 💣', GW / 2, GH / 2 + 60);
+      ctx.fillText(`ลากนิ้วซ้าย-ขวา เพื่อรับของ • หลบ ${THEMES[theme].hazard}`, GW / 2, GH / 2 + 60);
     }
   }
 }
 
 // ---------------- game loop ----------------
-function pickType() {
-  let r = Math.random() * Object.values(ITEMS).reduce((a, b) => a + b.w, 0);
-  for (const [k, v] of Object.entries(ITEMS)) if ((r -= v.w) < 0) return k;
-  return 'egg';
+function spawnItem() {
+  const t = THEMES[theme];
+  const pool = [...t.items.map((d, i) => ({ def: d, kind: i, w: d.w, r: d.r })), { def: { e: t.hazard }, kind: -1, w: HAZARD.w, r: HAZARD.r }];
+  let roll = Math.random() * pool.reduce((s, p) => s + p.w, 0);
+  const p = pool.find((q) => (roll -= q.w) < 0) || pool[0];
+  S.items.push({ def: p.def, kind: p.kind, x: rand(50, GW - 50), y: -40, vy: 230 + S.t * 7 + rand(0, 90), r: p.r, rot: rand(-0.4, 0.4), vr: rand(-2, 2) });
 }
 
 function startGame() {
-  S = { phase: 'count', countLeft: 3, t: 0, px: GW / 2, tx: GW / 2, vx: 0, items: [], floats: [], score: 0, combo: 0, maxCombo: 0, hearts: HEARTS, spawn: 0, shake: 0, eggs: 0, gifts: 0, last: performance.now(), lastCount: 4 };
+  S = { phase: 'count', countLeft: 3, t: 0, px: GW / 2, tx: GW / 2, vx: 0, items: [], floats: [], score: 0, combo: 0, maxCombo: 0, hearts: HEARTS, spawn: 0, shake: 0, nA: 0, nB: 0, last: performance.now(), lastCount: 4 };
   showScreen('s-play');
   startRec();
   requestAnimationFrame(loop);
@@ -263,7 +321,6 @@ function loop(now) {
     if (Math.ceil(S.countLeft) !== S.lastCount) { S.lastCount = Math.ceil(S.countLeft); sfx(S.countLeft > 0 ? 'tap' : 'good'); }
     if (S.countLeft <= -0.5) S.phase = 'play';
   } else if (S.phase === 'play') update(dt);
-  // player follows the finger smoothly
   const prev = S.px;
   S.px += (S.tx - S.px) * Math.min(1, dt * 14);
   S.vx = (S.px - prev) / Math.max(dt, 0.001);
@@ -278,42 +335,41 @@ function update(dt) {
   S.t += dt;
   S.spawn -= dt;
   if (S.spawn <= 0) {
-    const type = pickType(), d = ITEMS[type];
-    S.items.push({ type, x: rand(50, GW - 50), y: -40, vy: 230 + S.t * 7 + rand(0, 90), r: d.r, rot: rand(-0.4, 0.4), vr: rand(-2, 2) });
+    spawnItem();
     S.spawn = Math.max(0.32, 0.85 - S.t * 0.012);
   }
+  const [zTop, zBottom] = hero.zone(hero.ground);
   for (const it of S.items) {
     it.y += it.vy * dt;
     it.rot += it.vr * dt;
-    if (!it.done && it.y + it.r * 0.6 >= BASKET_Y && it.y - it.r < BASKET_Y + 24 && Math.abs(it.x - S.px) < 70) {
+    if (!it.done && it.y + it.r * 0.6 >= zTop && it.y - it.r < zBottom && Math.abs(it.x - S.px) < hero.halfW) {
       it.done = true;
-      catchItem(it);
+      catchItem(it, zTop);
     } else if (!it.done && it.y > GH + 40) {
       it.done = true;
-      if (it.type !== 'bomb') S.combo = 0; // missed a good item
+      if (it.kind >= 0) S.combo = 0; // missed a good item
     }
   }
   S.items = S.items.filter((it) => !it.done);
   if (S.t >= DURATION || S.hearts <= 0) endGame();
 }
 
-function catchItem(it) {
-  if (it.type === 'bomb') {
+function catchItem(it, zTop) {
+  if (it.kind < 0) {
     S.hearts--;
     S.combo = 0;
     S.shake = 1;
-    S.floats.push({ text: '💥 -1 ❤️', x: it.x, y: BASKET_Y - 40, life: 1.2, color: '#ff4d4d' });
+    S.floats.push({ text: '💥 -1 ❤️', x: it.x, y: zTop - 40, life: 1.2, color: '#ff4d4d' });
     sfx('bad');
     return;
   }
   S.combo++;
   S.maxCombo = Math.max(S.maxCombo, S.combo);
-  const mult = 1 + Math.floor(S.combo / 5);
-  const pts = ITEMS[it.type].pts * mult;
+  const pts = it.def.pts * (1 + Math.floor(S.combo / 5));
   S.score += pts;
-  if (it.type === 'gift') S.gifts++; else S.eggs++;
-  S.floats.push({ text: `+${pts}`, x: it.x, y: BASKET_Y - 30, life: 1, color: it.type === 'gold' ? '#ffd84a' : '#fff' });
-  sfx(it.type === 'gold' ? 'coin' : 'good');
+  if (it.kind === 2) S.nB++; else S.nA++;
+  S.floats.push({ text: `+${pts}`, x: it.x, y: zTop - 30, life: 1, color: it.kind === 1 ? '#ffd84a' : '#fff' });
+  sfx(it.kind === 1 ? 'coin' : 'good');
 }
 
 async function endGame() {
@@ -328,8 +384,7 @@ async function endGame() {
 // ---------------- input ----------------
 function pointerTo(e) {
   const r = cv.getBoundingClientRect();
-  // canvas is drawn with object-fit-like stretch: width maps 1:1 to GW
-  S && (S.tx = Math.max(60, Math.min(GW - 60, ((e.clientX - r.left) / r.width) * GW)));
+  if (S) S.tx = Math.max(60, Math.min(GW - 60, ((e.clientX - r.left) / r.width) * GW));
 }
 cv.addEventListener('pointerdown', pointerTo);
 cv.addEventListener('pointermove', pointerTo);
@@ -368,11 +423,13 @@ function stopRec() {
 // ---------------- results ----------------
 function showScore() {
   showScreen('s-score');
-  $('#stEgg').textContent = S.eggs;
-  $('#stGift').textContent = S.gifts;
+  const t = THEMES[theme];
+  $('#lblA').textContent = t.icons[0];
+  $('#lblB').textContent = t.icons[1];
+  $('#stA').textContent = S.nA;
+  $('#stB').textContent = S.nB;
   $('#stCombo').textContent = `x${S.maxCombo}`;
-  const sc = $('#scoreChar');
-  drawPreview(sc.getContext('2d'), sc.width, sc.height, 1);
+  $('#scoreChar').replaceChildren(heroScene(300, 380));
   animate(1200, (p) => { $('#sScore').textContent = Math.round(S.score * p); });
   confetti($('.stage'));
 }
@@ -401,41 +458,34 @@ $('#toShare').onclick = () => {
 };
 
 function makePoster() {
-  const [c, x] = makeCanvas(600, 800);
-  x.drawImage(bg, 0, 160, GW, 800, 0, 0, 600, 800);
-  x.fillStyle = '#0002';
-  x.fillRect(0, 0, 600, 800);
-  x.save();
-  x.translate(300, 760);
-  x.scale(1.7, 1.7);
-  drawCharacter(x, 0, 0, 0);
-  x.restore();
-  for (let i = 0; i < 6; i++) emoji(x, ['🥚', '🎁', '✨'][i % 3], 60 + ((i * 97) % 480), 260 + ((i * 53) % 120), 40, rand(-0.4, 0.4));
+  const c = heroScene(600, 800);
+  const x = c.getContext('2d');
+  const t = THEMES[theme];
+  for (let i = 0; i < 6; i++) emoji(x, [t.icons[0], t.icons[1], '✨'][i % 3], 50 + ((i * 97) % 500), 300 + ((i * 53) % 90), 40, rand(-0.4, 0.4));
   x.textAlign = 'center';
   x.lineJoin = 'round';
   x.font = '800 80px Kanit, sans-serif';
   x.lineWidth = 14;
   x.strokeStyle = '#1e3a9a';
   x.fillStyle = '#ffd84a';
-  x.strokeText('รับของไข่ตก!', 300, 110);
-  x.fillText('รับของไข่ตก!', 300, 110);
+  x.strokeText('รับของไข่ตก!', 300, 100);
+  x.fillText('รับของไข่ตก!', 300, 100);
   x.fillStyle = '#1e3fb8';
-  roundRect(x, 190, 135, 220, 44, 10);
+  roundRect(x, 190, 125, 220, 44, 10);
   x.fill();
   x.fillStyle = '#fff';
   x.font = '800 italic 26px Kanit, sans-serif';
-  x.fillText('CATCH & WIN', 300, 166);
+  x.fillText('CATCH & WIN', 300, 156);
   x.fillStyle = '#fff8e6';
-  roundRect(x, 200, 195, 200, 70, 18);
+  roundRect(x, 190, 182, 220, 64, 18);
   x.fill();
   x.fillStyle = '#8a2a00';
-  x.font = '800 40px Kanit, sans-serif';
-  x.fillText(`${S.score} คะแนน`, 300, 245);
+  x.font = '800 38px Kanit, sans-serif';
+  x.fillText(`${S.score} คะแนน`, 300, 228);
   return c;
 }
 
 $('#dlPoster').onclick = () => posterCanvas && downloadCanvas(posterCanvas, 'catch-and-win.png');
 $('#dlVideo').onclick = () => videoBlob && downloadBlob(videoBlob, `catch-and-win.${videoBlob.type.includes('mp4') ? 'mp4' : 'webm'}`);
-// Same character again. A new player starts from the Home button.
+// Same character and theme again. A new player starts from the Home button.
 $('#again').onclick = () => { sfx('tap'); startGame(); };
-
