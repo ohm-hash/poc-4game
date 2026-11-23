@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Photohunt</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .stage { background: radial-gradient(120% 50% at 50% 0%, #ff9d2a 0%, transparent 60%), linear-gradient(180deg, #e86a00, #3a1240 55%, #0b1030); }
+  .badge-blue { background: linear-gradient(180deg, #3a6bff, #1636a8); border: 2px solid #9fb8ff; border-radius: 999px; padding: .2em 1.1em; font-weight: 800; font-style: italic; box-shadow: 0 .3em .6em #0006; }
+  .hero-title { font-size: 3.6em; font-style: italic; }
+  .home-hero { font-size: 7em; filter: drop-shadow(0 .1em .2em #000a); animation: float 3s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-.1em) rotate(-4deg); } }
+  .navy { background: #0b1238dd; border-color: #4d6bff88; }
+  .pic { position: relative; width: 100%; border-radius: .8em; overflow: hidden; border: .18em solid var(--gold); box-shadow: 0 .3em .8em #0007; touch-action: manipulation; cursor: crosshair; flex-shrink: 0; }
+  .pic canvas { width: 100%; display: block; }
+  .pic .tag { position: absolute; top: .3em; left: .3em; font-size: .7em; background: #000a; padding: .05em .6em; border-radius: 999px; pointer-events: none; }
+  .mk { position: absolute; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; border: .2em solid #ffe600; box-shadow: 0 0 .6em #ffe600, inset 0 0 .4em #ffe600; animation: ring .35s ease; }
+  .mk.hint { border-color: #4dd2ff; box-shadow: 0 0 .8em #4dd2ff; animation: blink .5s 4; }
+  .mk.miss { width: 2em !important; border-color: #ff4d4d; box-shadow: none; display: grid; place-items: center; color: #ff4d4d; font-weight: 800; animation: fadeout .9s forwards; }
+  @keyframes ring { from { transform: translate(-50%, -50%) scale(2); opacity: 0; } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes fadeout { to { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }
+  #genPreview canvas { width: 100%; display: block; border-radius: 1em; border: .2em solid #4d6bff; }
+  .stat-box { background: #0b1238dd; border: 2px solid #4d6bff88; border-radius: .8em; padding: .3em .8em; text-align: center; flex: 1; }
+  .stat-box small { display: block; font-size: .75em; opacity: .85; }
+  .stat-box b { font-size: 1.6em; }
+  .big-score { font-size: 3.2em; font-weight: 800; line-height: 1; }
+</style>
+</head>
+<body>
+<main class="stage">
+  <a class="home-btn" href="index.html" title="เลือกเกม">⌂</a>
+
+  <section class="screen active" id="s-home">
+    <div class="spacer"></div>
+    <div class="badge-blue">SPOT THE DIFFERENCE</div>
+    <div class="title hero-title gold-text">PHOTOHUNT</div>
+    <div class="title md">หาให้เจอ...ความต่าง!</div>
+    <p class="sub">AI สร้างภาพให้คุณ พร้อมจุดแตกต่างที่ซ่อนอยู่</p>
+    <div class="home-hero">🧛🎃</div>
+    <div class="spacer"></div>
+    <button class="btn wide" id="start">START</button>
+  </section>
+
+  <section class="screen" id="s-capture">
+    <div class="step"><b>2</b>ถ่ายรูปของคุณ</div>
+    <div class="spacer"></div>
+    <div id="cap"></div>
+    <div class="spacer"></div>
+  </section>
+
+  <section class="screen" id="s-gen">
+    <div class="step"><b>3</b>AI สร้างภาพตามธีม</div>
+    <div id="genPreview" style="width:80%"></div>
+    <div class="row"><span>AI Generating...</span><div class="spacer"></div><b id="genPct">0%</b></div>
+    <div class="bar"><i id="genBar"></i></div>
+    <p class="sub muted">กำลังซ่อนจุดแตกต่าง 8 จุด 🤫</p>
+  </section>
+
+  <section class="screen" id="s-play">
+    <div class="hud navy">
+      <div><small>⏱ เวลา</small><b id="pTime">01:30</b></div>
+      <div><small>พบแล้ว</small><b id="pFound">0/8</b></div>
+    </div>
+    <p class="sub" id="pMsg">แตะจุดที่แตกต่างทั้งหมด 8 จุด (บนหรือล่างก็ได้)</p>
+    <div class="pic" id="picA"><span class="tag">ภาพต้นฉบับ</span></div>
+    <div class="pic" id="picB"><span class="tag">ภาพที่ AI แก้ไข</span></div>
+    <button class="btn ghost sm" id="hintBtn">💡 ใบ้ (−10 วินาที)</button>
+  </section>
+
+  <section class="screen" id="s-result">
+    <div class="spacer"></div>
+    <div style="font-size:4em">🏆</div>
+    <div class="title lg gold-text" id="rTitle">WELL DONE!</div>
+    <div class="title sm" id="rSub">คุณเก่งมาก!</div>
+    <div class="row">
+      <div class="stat-box"><small>เวลาที่ใช้</small><b id="rTime">00:00</b></div>
+      <div class="stat-box"><small>ค้นพบ</small><b id="rFound">0/8</b></div>
+    </div>
+    <div class="stat-box" style="width:100%;flex:none"><small>คะแนนรวม</small><div class="big-score" id="rScore">0</div><div class="stars" id="rStars"></div></div>
+    <div class="spacer"></div>
+    <button class="btn wide" id="toSave">ถัดไป ➜</button>
+  </section>
+
+  <section class="screen" id="s-save">
+    <div class="step"><b>7</b>บันทึกภาพที่คุณชอบ</div>
+    <div class="title md gold-text">สแกน QR โหลดรูป</div>
+    <div id="saveImg" style="width:72%"></div>
+    <div class="row">
+      <div class="qr" id="qr"></div>
+      <button class="btn blue sm" id="dl">⬇ ดาวน์โหลด</button>
+    </div>
+    <p class="poc-note">POC: QR เป็นลิงก์จำลอง — เวอร์ชันจริงจะอัปโหลดรูปขึ้น server</p>
+    <div class="spacer"></div>
+    <button class="btn blue wide" id="home">🏠 กลับหน้าหลัก</button>
+  </section>
+</main>
+<script type="module" src="assets/photohunt.js"></script>
+</body>
+</html>

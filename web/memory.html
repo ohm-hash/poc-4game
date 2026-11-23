@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Memory Match</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8em; width: 100%; }
+  .theme-card {
+    position: relative; border: .2em solid #ffd27a88; border-radius: 1em; overflow: hidden; padding: 0; cursor: pointer;
+    background: #2b0d02; box-shadow: 0 .4em .8em #0005; transition: transform .15s;
+  }
+  .theme-card canvas { width: 100%; display: block; aspect-ratio: 5 / 6; }
+  .theme-card span {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: .25em; font: 800 1em Kanit, sans-serif; color: var(--gold);
+    background: linear-gradient(transparent, #000c 40%); text-shadow: 0 2px 0 #000;
+  }
+  .theme-card.sel { border-color: var(--gold); transform: scale(1.04); box-shadow: 0 0 0 .2em #fff, 0 0 1.5em var(--gold); }
+  .theme-card.sel::after { content: '✓'; position: absolute; top: .3em; right: .3em; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--green); display: grid; place-items: center; font-weight: 800; }
+
+  .gen-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5em; width: 100%; }
+  .gen-slot { aspect-ratio: 1; border-radius: .7em; background: #0003; border: 2px dashed #fff6; overflow: hidden; display: grid; place-items: center; }
+  .gen-slot::before { content: '✨'; font-size: 1.6em; animation: pulse 1s infinite; }
+  .gen-slot.done { border: .15em solid var(--gold); }
+  .gen-slot.done::before { display: none; }
+  .gen-slot img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn .4s; }
+  @keyframes pulse { 50% { opacity: .3; transform: scale(.8); } }
+
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5em; width: 100%; perspective: 900px; }
+  .mcard { aspect-ratio: 1; background: none; border: 0; padding: 0; cursor: pointer; }
+  .mcard .inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .4s; }
+  .mcard.flipped .inner { transform: rotateY(180deg); }
+  .mcard .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: .7em; overflow: hidden; }
+  .mcard .back {
+    display: grid; place-items: center; font-size: 2.2em;
+    background: radial-gradient(circle at 35% 30%, #ffc04a, #ff7a00 60%, #d94800);
+    border: .12em solid #ffe0a0; box-shadow: inset 0 0 .6em #0004, 0 .2em .4em #0005;
+  }
+  .mcard .front { transform: rotateY(180deg); border: .15em solid var(--gold); background: #000; }
+  .mcard .front img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mcard.matched .front { box-shadow: 0 0 0 .15em #7dff7a, 0 0 1em #7dff7a; animation: bump .4s; }
+  @keyframes bump { 50% { transform: rotateY(180deg) scale(1.1); } }
+
+  .carousel { display: flex; gap: .8em; overflow-x: auto; scroll-snap-type: x mandatory; width: 100%; padding: .4em 20%; scrollbar-width: none; flex-shrink: 0; }
+  .carousel::-webkit-scrollbar { display: none; }
+  .carousel img { width: 60%; flex: 0 0 60%; scroll-snap-align: center; border-radius: 1em; border: .2em solid #fff6; transition: transform .2s, border-color .2s; cursor: pointer; }
+  .carousel img.sel { border-color: var(--gold); transform: scale(1.04); box-shadow: 0 0 1.2em #ffd84a; }
+  .dots { display: flex; gap: .35em; }
+  .dots i { width: .55em; height: .55em; border-radius: 50%; background: #fff6; }
+  .dots i.on { background: var(--gold); }
+</style>
+</head>
+<body>
+<main class="stage">
+  <a class="home-btn" href="index.html" title="เลือกเกม">⌂</a>
+
+  <section class="screen active" id="s-capture">
+    <div class="title lg gold-text">MEMORY<br>MATCH 🃏</div>
+    <p class="sub">จับคู่ความสนุก ลุ้นรับของที่ระลึก<br><span class="muted">AI จะสร้างภาพสุดน่ารักตาม Theme ให้คุณจับคู่ 8 คู่</span></p>
+    <div class="step"><b>1</b>ถ่ายรูป หรือ อัปโหลดรูป</div>
+    <div id="cap"></div>
+  </section>
+
+  <section class="screen" id="s-theme">
+    <div class="step"><b>2</b>เลือก Theme ที่ต้องการ</div>
+    <div class="theme-grid" id="themeGrid"></div>
+    <div class="spacer"></div>
+    <div class="row"><button class="btn ghost sm" id="retake">📷 ถ่ายใหม่</button><button class="btn" id="toGen">ถัดไป ➜</button></div>
+  </section>
+
+  <section class="screen" id="s-gen">
+    <div class="step"><b>3</b>AI สร้างภาพ 8 คู่</div>
+    <p class="sub">AI กำลังสร้างภาพให้คุณ...</p>
+    <div class="row"><div class="bar"><i id="genBar"></i></div><b id="genCount" style="white-space:nowrap">0 / 8</b></div>
+    <div class="gen-grid" id="genGrid"></div>
+  </section>
+
+  <section class="screen" id="s-game">
+    <div class="step"><b>4</b>เริ่มเกม จับคู่ให้ได้!</div>
+    <div class="hud">
+      <div><small>⏱ เวลา</small><b id="hTime">01:30</b></div>
+      <div><small>คู่ที่จับได้</small><b id="hPairs">0 / 8</b></div>
+      <div><small>คะแนน</small><b id="hScore">0</b></div>
+    </div>
+    <div class="board" id="board"></div>
+    <p class="sub muted">แตะการ์ดเพื่อเปิด หาภาพที่เหมือนกันให้ครบ 8 คู่</p>
+  </section>
+
+  <section class="screen" id="s-result">
+    <div class="title md gold-text" id="rTitle">🏆 ยินดีด้วย!</div>
+    <p class="sub" id="rSub">คุณจับคู่ครบทุกคู่แล้ว</p>
+    <div class="hud">
+      <div><small>เวลาที่ใช้</small><b id="rTime">00:00</b></div>
+      <div><small>จับคู่ได้</small><b id="rPairs">0 / 8</b></div>
+      <div><small>คะแนน</small><b id="rScore">0</b></div>
+    </div>
+    <p class="sub">เลือกรูปที่ชอบ ← ปัด →</p>
+    <div class="carousel" id="carousel"></div>
+    <div class="dots" id="dots"></div>
+    <div class="row">
+      <div class="qr" id="qr"></div>
+      <div class="col"><p class="sub">สแกนเพื่อดาวน์โหลด<br>รูปของคุณ</p><button class="btn blue sm" id="dl">⬇ ดาวน์โหลด</button></div>
+    </div>
+    <p class="poc-note">POC: QR เป็นลิงก์จำลอง — เวอร์ชันจริงจะอัปโหลดรูปขึ้น server แล้วให้สแกนโหลดได้ทันที</p>
+    <button class="btn" id="again">🔄 เล่นอีกครั้ง</button>
+  </section>
+</main>
+<script type="module" src="assets/memory.js"></script>
+</body>
+</html>

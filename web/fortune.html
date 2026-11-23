@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>เปิดดวงแบบขำๆ กับ AI</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .logo { font-size: 3.4em; font-weight: 800; line-height: 1; text-align: center; transform: rotate(-3deg); }
+  .logo span { display: block; color: #fff; -webkit-text-stroke: .06em #5a1a00; paint-order: stroke fill; text-shadow: 0 .1em 0 #5a1a00; }
+  .logo .ai { color: var(--gold); font-size: 1.3em; }
+  .ball { position: relative; width: 11em; height: 12em; flex-shrink: 0; }
+  .ball .orb {
+    position: absolute; left: .5em; top: 0; width: 10em; height: 10em; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff9 0 8%, transparent 9%), radial-gradient(circle at 50% 50%, #b46bff, #5a1a9a 60%, #2a0a50);
+    box-shadow: 0 0 2em #c58bff, 0 0 5em #ff9d00aa; display: grid; place-items: center;
+    font-size: 1em; animation: glow 2s ease-in-out infinite;
+  }
+  .ball .orb b { font-size: 3.6em; color: var(--gold); text-shadow: 0 .05em 0 #8a2a00, 0 0 .4em #ffd84a; }
+  .ball .base { position: absolute; left: 1.5em; bottom: 0; width: 8em; height: 2.6em; border-radius: 1em 1em .5em .5em; background: linear-gradient(180deg, #8a3ad6, #3a0f6a); display: grid; place-items: center; font-size: .9em; font-weight: 800; color: var(--gold); }
+  .ball.spin .orb { animation: glow .6s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: 0 0 3em #e0b8ff, 0 0 7em #ffd84a; transform: scale(1.03); } }
+  .mic {
+    width: 9em; height: 9em; border-radius: 50%; border: .35em solid #ffd84a; cursor: pointer; flex-shrink: 0;
+    background: radial-gradient(circle, #ffb23d, #ff6a00 70%); font-size: 1em; box-shadow: 0 0 0 .5em #ff9d0055, 0 0 2em #ffd84a;
+    display: grid; place-items: center; color: #fff;
+  }
+  .mic span { font-size: 4em; }
+  .mic.listening { animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 1.4em #ff9d0033, 0 0 3em #fff; } }
+  .heard { background: var(--cream); color: var(--o4); border-radius: 1em; padding: .5em .9em; width: 100%; box-shadow: 0 .3em .6em #0004; }
+  .heard small { display: block; font-weight: 600; }
+  .heard b { font-size: 1.6em; display: block; text-align: center; min-height: 1.3em; }
+  .manual { display: flex; gap: .4em; width: 100%; }
+  .manual select { flex: 1; font: inherit; font-size: .95em; padding: .35em; border-radius: .6em; border: 2px solid #ffd84a; background: #fff8ec; color: var(--o4); }
+  .check { display: flex; flex-direction: column; gap: .45em; width: 100%; }
+  .check div { display: flex; align-items: center; gap: .6em; background: #3a1205aa; border-radius: .8em; padding: .45em .8em; opacity: .4; transition: opacity .3s; }
+  .check div.on { opacity: 1; }
+  .check i { margin-left: auto; font-style: normal; width: 1.5em; height: 1.5em; border-radius: 50%; display: grid; place-items: center; border: 2px solid #fff6; }
+  .check div.ok i { background: var(--green); border-color: var(--green); }
+  .check div.on:not(.ok) i { border-top-color: var(--gold); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .result-head { background: linear-gradient(180deg, #fff8e6, #ffe2a8); color: var(--o4); border-radius: 1.2em; padding: .5em 1em; text-align: center; width: 100%; border: .2em solid var(--gold); }
+  .result-head .h { font-size: 1.5em; font-weight: 800; color: #e5373f; line-height: 1.15; }
+  .result-head .p { font-size: 1.25em; font-weight: 800; color: #1e3fb8; }
+  .detail { background: #fff3dc; color: var(--o4); border-radius: 1em; padding: .5em .9em; text-align: center; width: 100%; font-size: .9em; }
+  .detail .t { color: #e5373f; font-weight: 800; font-size: 1.2em; }
+  .meter { display: flex; gap: .5em; width: 100%; font-size: .85em; }
+  .meter div { flex: 1; background: #3a1205aa; border-radius: .7em; padding: .25em .4em; text-align: center; }
+  .meter b { display: block; font-size: 1.2em; color: var(--gold); }
+</style>
+</head>
+<body>
+<main class="stage">
+  <a class="home-btn" href="index.html" title="เลือกเกม">⌂</a>
+
+  <section class="screen active" id="s-start">
+    <div class="spacer"></div>
+    <div class="logo"><span>เปิดดวง</span><span>แบบขำๆ</span><span class="ai">กับ AI</span></div>
+    <div class="bubble">ดวงจะปัง หรือดวงจะพัง<br>ไม่รู้... แต่รับรองว่าขำ! 😂</div>
+    <div class="ball"><div class="orb"><b>AI</b></div><div class="base">HOROSCOPE</div></div>
+    <div class="spacer"></div>
+    <button class="btn wide" id="begin">เริ่มทำนายดวง ➜</button>
+    <p class="sub muted">🐱 แม่นไม่แม่น แต่สนุกแน่!</p>
+  </section>
+
+  <section class="screen" id="s-photo">
+    <div class="title md">📸 ถ่ายรูปตัวเองหน่อย!</div>
+    <div class="bubble" style="font-size:.85em">เพื่อให้ AI อ่านพลังความปังของคุณ</div>
+    <div id="cap"></div>
+    <button class="btn ghost sm" data-back="s-start">← กลับ</button>
+  </section>
+
+  <section class="screen" id="s-voice">
+    <div class="title md">🎙️ บอกวันเกิดของคุณ<br>ให้ AI ฟังหน่อย</div>
+    <div class="bubble" style="font-size:.85em">"พูดวัน เดือน ปีเกิด... เช่น 15 มีนาคม 2540"</div>
+    <button class="mic" id="mic"><span>🎤</span></button>
+    <p class="sub" id="micHint">แตะไมค์แล้วพูดได้เลย</p>
+    <div class="heard"><small>AI ได้ยินว่า...</small><b id="heard">—</b></div>
+    <div class="manual" id="manual" hidden>
+      <select id="mDay"></select><select id="mMonth"></select><select id="mYear"></select>
+    </div>
+    <p class="sub">ถูกต้องไหม?</p>
+    <div class="row">
+      <button class="btn green" id="ok" disabled>✔ ถูกต้อง</button>
+      <button class="btn red" id="again">🎤 พูดใหม่</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost sm" data-back="s-photo">← กลับ</button>
+      <button class="btn ghost sm" id="typeIt">⌨️ เลือกเอง</button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-process">
+    <div class="title md gold-text">AI กำลังเปิดดวง<br>แบบขำๆ ให้คุณอยู่...</div>
+    <div class="bubble" style="font-size:.85em">แป๊ปน้า 🐱</div>
+    <div class="ball spin"><div class="orb"><b>AI</b></div><div class="base">✨ ✨ ✨</div></div>
+    <div class="check" id="check">
+      <div>😍 กำลังสแกนความน่ารักของคุณ<i></i></div>
+      <div>💗 กำลังค้นหาดวงเนื้อคู่<i></i></div>
+      <div>⭐ กำลังคำนวณความปัง<i></i></div>
+      <div>😂 กำลังแต่งเรื่องให้ฮาๆ<i></i></div>
+    </div>
+    <div class="row"><div class="bar"><i id="pBar"></i></div><b id="pPct">0%</b></div>
+  </section>
+
+  <section class="screen" id="s-result">
+    <p class="sub">💗 ดวงความรักของคุณ วันนี้คือ... 💗</p>
+    <div class="result-head"><div class="h" id="rHead"></div><div class="p" id="rPartner"></div></div>
+    <div id="rImg" style="width:100%"></div>
+    <div class="detail"><div class="t">อีกไม่นานเกินรอ!</div><div id="rDetail"></div></div>
+    <div class="meter">
+      <div>ราศี<b id="rZodiac"></b></div>
+      <div>ความปัง<b id="rLove"></b></div>
+      <div>นำโชค<b id="rLucky"></b></div>
+    </div>
+    <div class="row">
+      <div class="qr" id="qr"></div>
+      <div class="col"><p class="sub">สแกน QR<br>เพื่อดาวน์โหลดรูป</p><button class="btn blue sm" id="dl">⬇ ดาวน์โหลด</button></div>
+    </div>
+    <p class="poc-note">POC: QR เป็นลิงก์จำลอง • ดวงนี้เพื่อความบันเทิงเท่านั้น 😆</p>
+    <button class="btn wide" id="restart">🔄 ทำนายอีกครั้ง</button>
+  </section>
+</main>
+<script type="module" src="assets/fortune.js"></script>
+</body>
+</html>

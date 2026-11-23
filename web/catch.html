@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>รับของไข่ตก! Catch &amp; Win</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .stage { background: radial-gradient(100% 50% at 50% 0%, #ffd36b 0%, transparent 60%), linear-gradient(180deg, #ff9a1a, #ff6a00 60%, #c94a00); }
+  .logo { font-size: 3.6em; font-weight: 800; line-height: .95; text-align: center; transform: rotate(-4deg); }
+  .logo .l1 { color: #fff; text-shadow: 0 .06em 0 #1e3a9a, 0 .1em 0 #1e3a9a, 0 .18em .3em #0007; display: block; }
+  .ribbon { background: linear-gradient(180deg, #3f78ff, #1e3fb8); padding: .15em 1.2em; border-radius: .3em; font-weight: 800; font-style: italic; font-size: 1.3em; transform: rotate(-4deg); box-shadow: 0 .3em .6em #0006; border: 2px solid #9fc0ff; }
+  .chars { font-size: 6em; animation: float 2.4s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-.08em); } }
+  #s-play { padding: 0; }
+  .stage:has(#s-play.active) .home-btn { display: none; }
+  #game { width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
+  .gen-row { display: flex; flex-direction: column; align-items: center; gap: .4em; width: 100%; }
+  .gen-row canvas { border-radius: 1em; border: .2em solid #fff; box-shadow: 0 .4em 1em #0005; display: block; }
+  #genPhoto { width: 45%; }
+  #genChar { width: 62%; background: #fff3dc; }
+  .arrow { font-size: 2em; animation: float 1s infinite; }
+  .score-card { background: linear-gradient(180deg, #fff8e6, #ffe2a8); color: var(--o4); border-radius: 1.2em; padding: .5em 1.5em; text-align: center; border: .25em solid var(--gold); box-shadow: 0 .5em 1.2em #0006; }
+  .score-card small { font-weight: 600; font-size: 1.1em; }
+  .score-card b { display: block; font-size: 3.6em; line-height: 1; }
+  #scoreChar { width: 70%; }
+  video.shot { background: #000; max-height: 58vh; object-fit: contain; }
+  .stats { display: flex; gap: .5em; width: 100%; }
+  .stats div { flex: 1; background: #0004; border-radius: .7em; padding: .2em; text-align: center; font-size: .85em; }
+  .stats b { display: block; font-size: 1.4em; }
+</style>
+</head>
+<body>
+<main class="stage">
+  <a class="home-btn" href="index.html" title="เลือกเกม">⌂</a>
+
+  <section class="screen active" id="s-start">
+    <div class="spacer"></div>
+    <div class="logo"><span class="l1">รับของ</span><span class="gold-text">ไข่ตก!</span></div>
+    <div class="ribbon">CATCH &amp; WIN</div>
+    <div class="chars">🧺🥚</div>
+    <p class="sub">AI เปลี่ยนรูปคุณเป็นตัวละครน่ารัก<br>แล้วรับไข่ รับของขวัญ หลบระเบิด ให้ได้คะแนนมากที่สุด!</p>
+    <div class="spacer"></div>
+    <button class="btn blue wide" id="toCam">📷 ถ่ายรูป</button>
+    <button class="btn yellow wide" id="startSample">START GAME</button>
+  </section>
+
+  <section class="screen" id="s-capture">
+    <div class="step"><b>1</b>ถ่ายรูปเพื่อสร้างตัวละคร</div>
+    <div class="spacer"></div>
+    <div id="cap"></div>
+    <div class="spacer"></div>
+  </section>
+
+  <section class="screen" id="s-gen">
+    <div class="step"><b>1</b>AI เปลี่ยนรูปคุณให้เป็นตัวละครน่ารัก</div>
+    <div class="gen-row">
+      <div id="genPhoto"></div>
+      <div class="arrow">⬇️</div>
+      <canvas id="genChar" width="300" height="380"></canvas>
+    </div>
+    <div class="row"><span>AI GENERATING...</span><div class="spacer"></div><b id="genPct">0%</b></div>
+    <div class="bar"><i id="genBar"></i></div>
+    <button class="btn yellow wide" id="go" disabled>START GAME</button>
+  </section>
+
+  <section class="screen" id="s-play">
+    <canvas id="game" width="540" height="960"></canvas>
+  </section>
+
+  <section class="screen" id="s-score">
+    <div class="step"><b>3</b>จบเกม! สรุปคะแนน</div>
+    <div style="font-size:3em">👑</div>
+    <div class="score-card"><small>คะแนนรวม</small><b id="sScore">0</b></div>
+    <div class="stats">
+      <div>🥚 ไข่<b id="stEgg">0</b></div>
+      <div>🎁 ของขวัญ<b id="stGift">0</b></div>
+      <div>🔥 คอมโบสูงสุด<b id="stCombo">0</b></div>
+    </div>
+    <canvas id="scoreChar" width="300" height="380"></canvas>
+    <p class="sub">คุณทำได้ยอดเยี่ยม!</p>
+    <div class="spacer"></div>
+    <button class="btn wide" id="toVideo">🎬 ดูวิดีโอของคุณ</button>
+  </section>
+
+  <section class="screen" id="s-video">
+    <div class="step"><b>4</b>บันทึกวิดีโอ</div>
+    <p class="sub">บันทึกช่วงเวลาความสนุกของคุณ</p>
+    <video class="shot" id="replay" playsinline controls loop muted></video>
+    <p class="sub" id="noVideo" hidden>เบราว์เซอร์นี้บันทึกวิดีโอไม่ได้ — ข้ามไปรับภาพที่ระลึกแทน</p>
+    <div class="spacer"></div>
+    <button class="btn wide" id="toShare">ถัดไป ➜</button>
+  </section>
+
+  <section class="screen" id="s-share">
+    <div class="step"><b>5</b>บันทึก / แชร์</div>
+    <div id="poster" style="width:62%"></div>
+    <div class="row">
+      <div class="qr" id="qr"></div>
+      <div class="col">
+        <p class="sub">สแกนเพื่อรับวิดีโอ</p>
+        <button class="btn blue sm" id="dlVideo">⬇ วิดีโอ</button>
+        <button class="btn blue sm" id="dlPoster">⬇ ภาพ</button>
+      </div>
+    </div>
+    <p class="poc-note">POC: QR เป็นลิงก์จำลอง — เวอร์ชันจริงจะอัปโหลดวิดีโอขึ้น server</p>
+    <div class="spacer"></div>
+    <button class="btn wide" id="again">🔄 เล่นอีกครั้ง</button>
+  </section>
+</main>
+<script type="module" src="assets/catch.js"></script>
+</body>
+</html>

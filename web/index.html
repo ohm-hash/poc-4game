@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>POC 4 Game</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .games { display: flex; flex-direction: column; gap: .8em; width: 100%; }
+  .game {
+    display: flex; align-items: center; gap: .9em; padding: .8em; border-radius: 1.2em; text-decoration: none; color: #fff;
+    background: linear-gradient(135deg, #ffffff2a, #0000002a); border: 2px solid #ffd27a88; box-shadow: 0 .4em 1em #0004;
+    transition: transform .15s;
+  }
+  .game:active { transform: scale(.97); }
+  .game .ic { font-size: 2.6em; width: 1.6em; height: 1.6em; border-radius: .35em; display: grid; place-items: center; flex-shrink: 0; background: #0003; }
+  .game h2 { font-size: 1.2em; line-height: 1.15; }
+  .game p { font-size: .78em; opacity: .9; line-height: 1.3; }
+  .game .go { margin-left: auto; font-size: 1.6em; color: var(--gold); }
+</style>
+</head>
+<body>
+<main class="stage">
+  <section class="screen active">
+    <div class="title lg gold-text">POC 4 GAME</div>
+    <p class="sub">เกม AI Photo สำหรับบูธ / Kiosk จอสัมผัส<br><span class="muted">เลือกเกมที่ต้องการทดลองเล่น</span></p>
+    <div class="games">
+      <a class="game" href="memory.html"><span class="ic">🃏</span><div><h2>Memory Match</h2><p>ถ่ายรูป → เลือก Theme → AI สร้างภาพ 8 คู่ → จับคู่การ์ด → รับรูปกลับบ้าน</p></div><span class="go">➜</span></a>
+      <a class="game" href="photohunt.html"><span class="ic">🔍</span><div><h2>Photohunt</h2><p>AI สร้างภาพธีมแวมไพร์จากรูปคุณ ซ่อนจุดต่าง 8 จุด หาให้ครบก่อนหมดเวลา</p></div><span class="go">➜</span></a>
+      <a class="game" href="catch.html"><span class="ic">🧺</span><div><h2>รับของไข่ตก! Catch &amp; Win</h2><p>AI เปลี่ยนคุณเป็นตัวละคร 2D รับไข่ รับของ หลบระเบิด บันทึกวิดีโอการเล่น</p></div><span class="go">➜</span></a>
+      <a class="game" href="fortune.html"><span class="ic">🔮</span><div><h2>เปิดดวงแบบขำๆ กับ AI</h2><p>ถ่ายรูป + พูดวันเกิด ให้ AI ทำนายดวงความรักแบบฮาๆ พร้อมภาพเนื้อคู่</p></div><span class="go">➜</span></a>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" id="fs">⛶ เต็มจอ (Kiosk)</button>
+    <p class="poc-note">POC: การสร้างภาพ "AI" จำลองด้วย Canvas ในเบราว์เซอร์ — เวอร์ชันจริงเชื่อม AI image API ได้ที่ assets/ai.js</p>
+  </section>
+</main>
+<script>
+  document.getElementById('fs').onclick = () => {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  };
+</script>
+</body>
+</html>
